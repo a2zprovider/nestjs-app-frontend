@@ -9,15 +9,41 @@
 
   let orders = [];
   let searchTerm = "";
+  let updateMount = true;
 
   // Form state
   let title = "";
+  let category = "";
+  let orderDate = null;
+  let startDate = null;
+  let deadlineDate = null;
+  let price = null;
+  let priceTerms = null;
+  let source = null;
   let description = "";
+
+  let name = "";
+  let email = "";
+  let mobile = "";
+  let whatsapp = "";
+  let city = "";
+  let state = "";
+  let country = "";
+  let address = "";
+  let gstNumber = "";
+
   let loading = false;
   let errorMessage = "";
 
   // Field-specific error messages
   let formErrors = {};
+
+  function closeOffcanvas() {
+    const $ = jQuery;
+    $("#offcanvas_add").removeClass("show");
+    $(".offcanvas-backdrop").remove();
+    $("body").css({ overflow: "", paddingRight: "" });
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -25,7 +51,46 @@
     loading = true;
     formErrors = {}; // Reset previous errors
 
-    const newOrder = { title, description };
+    const newOrder = {
+      title,
+      category,
+      price,
+      priceTerms,
+      source,
+      description,
+    };
+    if (orderDate) {
+      newOrder.orderDate = orderDate;
+    }
+    if (startDate) {
+      newOrder.startDate = startDate;
+    }
+    if (deadlineDate) {
+      newOrder.deadlineDate = deadlineDate;
+    }
+
+    const newClient = {
+      name,
+      mobile,
+      whatsapp,
+      city,
+      state,
+      country,
+      address,
+      gstNumber,
+    };
+    email ? (newClient.email = email) : "";
+    newOrder.orderClient = newClient;
+    if (title == "") {
+      formErrors.title = ["Title is required."];
+      loading = false;
+      return;
+    }
+    if (name == "") {
+      formErrors.name = ["Name is required."];
+      loading = false;
+      return;
+    }
 
     try {
       const data = await authApiFetch("orders", {
@@ -33,7 +98,10 @@
         body: JSON.stringify(newOrder),
       });
       console.log("data  : ", data);
-      alert("Form Submitted.");
+
+      orders = [data.data, ...orders];
+      alert(data.message);
+      closeOffcanvas();
     } catch (error) {
       loading = false;
       const validationErrors = errorHandle(error);
@@ -72,41 +140,6 @@
     $(document).on("click", '[data-bs-dismiss="offcanvas"]', function () {
       closeOffcanvas();
     });
-
-    function closeOffcanvas() {
-      $("#offcanvas_add").removeClass("show");
-      $(".offcanvas-backdrop").remove();
-      $("body").css({ overflow: "", paddingRight: "" });
-    }
-
-    // Editor
-    // if ($(".editor").length > 0) {
-    //   document.querySelectorAll(".editor").forEach((editor) => {
-    //     new Quill(editor, {
-    //       theme: "snow",
-    //     });
-    //   });
-    // }
-
-    // Multiple Image
-    // if ($(".multiple-img").length > 0) {
-    //   function formatState(state) {
-    //     if (!state.id) return state.text;
-    //     const imageUrl = $(state.element).data("image");
-    //     const state1 = $(`
-    // 		<span>
-    // 			<img src="${imageUrl}" class="img-flag me-1" width="16" alt="flag">
-    // 			${state.text}
-    // 		</span>
-    // 	`);
-    //     return state1;
-    //   }
-    //   $(".multiple-img").select2({
-    //     minimumResultsForSearch: Infinity,
-    //     templateResult: formatState,
-    //     templateSelection: formatState,
-    //   });
-    // }
 
     // Filter
     document.addEventListener("DOMContentLoaded", () => {
@@ -148,6 +181,15 @@
   }
 
   $: [searchTerm], fetchOrders();
+
+  function getAvatarText(title) {
+    if (!title) return "";
+    const words = title.trim().split(" ");
+    if (words.length === 1) {
+      return words[0][0].toUpperCase();
+    }
+    return (words[0][0] + words[1][0]).toUpperCase();
+  }
 </script>
 
 <Header />
@@ -160,7 +202,7 @@
     <div class="flex items-center justify-between gap-2 mb-4 flex-wrap">
       <div>
         <h4 class="mb-1">
-          Orders<span class="badge badge-soft-primary ms-2">125</span>
+          Orders
         </h4>
         <nav aria-label="breadcrumb">
           <ol class="breadcrumb mb-0 p-0">
@@ -303,7 +345,9 @@
                         href={`/order/${order?.id}`}
                         class="avatar bg-soft-success text-success rounded-circle flex-shrink-0 me-2"
                       >
-                        <span class="avatar-title text-success">HT</span>
+                        <span class="avatar-title text-success"
+                          >{getAvatarText(order?.title)}</span
+                        >
                       </a>
                       <h6 class="fw-medium fs-14 mb-0">
                         <a href={`/order/${order?.id}`} class="capitalize"
@@ -315,19 +359,26 @@
                   <div class="flex flex-column">
                     <p class="text-default d-inline-flex items-center mb-2">
                       <i class="ti ti-report-money text-dark me-1"></i>
-                      $03,50,000
+                      {new Intl.NumberFormat("en-IN", {
+                        style: "currency",
+                        currency: "INR",
+                      })
+                        .format(order?.price || 0)
+                        .replace("₹", "₹ ")}
                     </p>
                     <p class="text-default d-inline-flex items-center mb-2">
                       <i class="ti ti-mail text-dark me-1"></i>
-                      <a href={`mailto:${order?.email}`}>{order?.email}</a>
+                      <a href={`mailto:${order?.orderClient?.email}`}
+                        >{order?.orderClient?.email ?? "-"}</a
+                      >
                     </p>
                     <p class="text-default d-inline-flex items-center mb-2">
                       <i class="ti ti-phone text-dark me-1"></i>
-                      {order?.mobile}
+                      {order?.orderClient?.mobile ?? "-"}
                     </p>
                     <p class="text-default d-inline-flex items-center">
                       <i class="ti ti-map-pin-pin text-dark me-1"></i>
-                      {order?.address}
+                      {order?.orderClient?.address ?? "-"}
                     </p>
                   </div>
                   <div class="flex justify-between items-center">
@@ -343,18 +394,18 @@
                         />
                       </a>
                       <a href="javascript:void(0);" class="text-default">
-                        {order?.user?.name}
+                        {order?.orderClient?.name}
                       </a>
                     </div>
-                    <span class="badge bg-success">85%</span>
+                    <span class="badge bg-success">{order?.status}</span>
                   </div>
                   <div
                     class="flex items-center justify-between border-top pt-3 mt-3"
                   >
                     <span>
                       <i class="ti ti-calendar-due"></i>
-                      {order?.createdAt &&
-                        new Date(order.createdAt).toLocaleDateString("en-GB", {
+                      {order?.orderDate &&
+                        new Date(order.orderDate).toLocaleDateString("en-GB", {
                           day: "2-digit",
                           month: "short",
                           year: "numeric",
@@ -401,7 +452,11 @@
     </button>
   </div>
   <div class="offcanvas-body">
-    <form on:submit={handleSubmit} class="needs-validation" novalidate>
+    <form
+      on:submit={handleSubmit}
+      class="needs-validation space-y-4"
+      novalidate
+    >
       <div class="grid grid-cols-2 gap-4">
         <div class="col-span-2">
           <label class="form-label" for="title">
@@ -423,6 +478,287 @@
             </ul>
           {/if}
         </div>
+        <div>
+          <label class="form-label" for="category">Category</label>
+          <input
+            type="text"
+            name="category"
+            class="form-control"
+            class:is-invalid={formErrors.category}
+            bind:value={category}
+            id="category"
+            placeholder="Category"
+          />
+          {#if formErrors.category}
+            <ul class="text-danger mt-1 text-xs capitalize">
+              <li>{formErrors.category[0]}</li>
+            </ul>
+          {/if}
+        </div>
+        <div>
+          <label class="form-label" for="orderDate">Order Date</label>
+          <input
+            type="date"
+            name="orderDate"
+            class="form-control"
+            class:is-invalid={formErrors.orderDate}
+            bind:value={orderDate}
+            id="orderDate"
+            placeholder="Order Date"
+          />
+          {#if formErrors.orderDate}
+            <ul class="text-danger mt-1 text-xs capitalize">
+              <li>{formErrors.orderDate[0]}</li>
+            </ul>
+          {/if}
+        </div>
+        <div>
+          <label class="form-label" for="startDate">Start Date</label>
+          <input
+            type="date"
+            name="startDate"
+            class="form-control"
+            class:is-invalid={formErrors.startDate}
+            bind:value={startDate}
+            id="startDate"
+            placeholder="Start Date"
+          />
+          {#if formErrors.startDate}
+            <ul class="text-danger mt-1 text-xs capitalize">
+              <li>{formErrors.startDate[0]}</li>
+            </ul>
+          {/if}
+        </div>
+        <div>
+          <label class="form-label" for="deadlineDate">Deadline Date</label>
+          <input
+            type="date"
+            name="deadlineDate"
+            class="form-control"
+            class:is-invalid={formErrors.deadlineDate}
+            bind:value={deadlineDate}
+            id="deadlineDate"
+            placeholder="Deadline Date"
+          />
+          {#if formErrors.deadlineDate}
+            <ul class="text-danger mt-1 text-xs capitalize">
+              <li>{formErrors.deadlineDate[0]}</li>
+            </ul>
+          {/if}
+        </div>
+        <div>
+          <label class="form-label" for="price">Price</label>
+          <input
+            type="number"
+            name="price"
+            class="form-control"
+            class:is-invalid={formErrors.price}
+            bind:value={price}
+            id="price"
+            placeholder="Price"
+          />
+          {#if formErrors.price}
+            <ul class="text-danger mt-1 text-xs capitalize">
+              <li>{formErrors.price[0]}</li>
+            </ul>
+          {/if}
+        </div>
+        <div>
+          <label class="form-label" for="priceTerms">Price Terms</label>
+          <input
+            type="text"
+            name="priceTerms"
+            class="form-control"
+            class:is-invalid={formErrors.priceTerms}
+            bind:value={priceTerms}
+            id="priceTerms"
+            placeholder="Price Terms"
+          />
+          {#if formErrors.priceTerms}
+            <ul class="text-danger mt-1 text-xs capitalize">
+              <li>{formErrors.priceTerms[0]}</li>
+            </ul>
+          {/if}
+        </div>
+        <div>
+          <label class="form-label" for="source">Source</label>
+          <input
+            type="text"
+            name="source"
+            class="form-control"
+            class:is-invalid={formErrors.source}
+            bind:value={source}
+            id="source"
+            placeholder="Source"
+          />
+          {#if formErrors.source}
+            <ul class="text-danger mt-1 text-xs capitalize">
+              <li>{formErrors.source[0]}</li>
+            </ul>
+          {/if}
+        </div>
+      </div>
+      <hr />
+      <h6>Client Details</h6>
+      <div class="grid grid-cols-2 gap-4">
+        <div class="col-span-2">
+          <label class="form-label" for="name">
+            Name <span class="text-danger">*</span>
+          </label>
+          <input
+            type="text"
+            name="name"
+            class="form-control"
+            class:is-invalid={formErrors.name}
+            bind:value={name}
+            required
+            id="name"
+            placeholder="Name"
+          />
+          {#if formErrors.name}
+            <ul class="text-danger mt-1 text-xs capitalize">
+              <li>{formErrors.name[0]}</li>
+            </ul>
+          {/if}
+        </div>
+        <div>
+          <label class="form-label" for="email"> Email </label>
+          <input
+            type="email"
+            name="email"
+            class="form-control"
+            class:is-invalid={formErrors.email}
+            bind:value={email}
+            id="email"
+            placeholder="Email"
+          />
+          {#if formErrors.email}
+            <ul class="text-danger mt-1 text-xs capitalize">
+              <li>{formErrors.email[0]}</li>
+            </ul>
+          {/if}
+        </div>
+        <div>
+          <label class="form-label" for="mobile"> Mobile </label>
+          <input
+            type="text"
+            name="mobile"
+            class="form-control"
+            class:is-invalid={formErrors.mobile}
+            bind:value={mobile}
+            id="mobile"
+            placeholder="Mobile"
+          />
+          {#if formErrors.mobile}
+            <ul class="text-danger mt-1 text-xs capitalize">
+              <li>{formErrors.mobile[0]}</li>
+            </ul>
+          {/if}
+        </div>
+
+        <div>
+          <label class="form-label" for="whatsapp"> Whatsapp </label>
+          <input
+            type="text"
+            name="whatsapp"
+            class="form-control"
+            class:is-invalid={formErrors.whatsapp}
+            bind:value={whatsapp}
+            id="whatsapp"
+            placeholder="Whatsapp"
+          />
+          {#if formErrors.whatsapp}
+            <ul class="text-danger mt-1 text-xs capitalize">
+              <li>{formErrors.whatsapp[0]}</li>
+            </ul>
+          {/if}
+        </div>
+        <div>
+          <label class="form-label" for="city"> City </label>
+          <input
+            type="text"
+            name="city"
+            class="form-control"
+            class:is-invalid={formErrors.city}
+            bind:value={city}
+            id="city"
+            placeholder="City"
+          />
+          {#if formErrors.city}
+            <ul class="text-danger mt-1 text-xs capitalize">
+              <li>{formErrors.city[0]}</li>
+            </ul>
+          {/if}
+        </div>
+        <div>
+          <label class="form-label" for="state"> State </label>
+          <input
+            type="text"
+            name="state"
+            class="form-control"
+            class:is-invalid={formErrors.state}
+            bind:value={state}
+            id="state"
+            placeholder="State"
+          />
+          {#if formErrors.state}
+            <ul class="text-danger mt-1 text-xs capitalize">
+              <li>{formErrors.state[0]}</li>
+            </ul>
+          {/if}
+        </div>
+        <div>
+          <label class="form-label" for="country"> Country </label>
+          <input
+            type="text"
+            name="country"
+            class="form-control"
+            class:is-invalid={formErrors.country}
+            bind:value={country}
+            id="country"
+            placeholder="Country"
+          />
+          {#if formErrors.country}
+            <ul class="text-danger mt-1 text-xs capitalize">
+              <li>{formErrors.country[0]}</li>
+            </ul>
+          {/if}
+        </div>
+        <div>
+          <label class="form-label" for="address"> Address </label>
+          <input
+            type="text"
+            name="address"
+            class="form-control"
+            class:is-invalid={formErrors.address}
+            bind:value={address}
+            id="address"
+            placeholder="Address"
+          />
+          {#if formErrors.address}
+            <ul class="text-danger mt-1 text-xs capitalize">
+              <li>{formErrors.address[0]}</li>
+            </ul>
+          {/if}
+        </div>
+        <div>
+          <label class="form-label" for="gstNumber"> GST Number </label>
+          <input
+            type="text"
+            name="gstNumber"
+            class="form-control"
+            class:is-invalid={formErrors.gstNumber}
+            bind:value={gstNumber}
+            id="gstNumber"
+            placeholder="GST Number"
+          />
+          {#if formErrors.gstNumber}
+            <ul class="text-danger mt-1 text-xs capitalize">
+              <li>{formErrors.gstNumber[0]}</li>
+            </ul>
+          {/if}
+        </div>
+
         <!-- <div>
           <div class="d-flex align-items-center justify-content-between">
             <label class="form-label" for="Pipeine">

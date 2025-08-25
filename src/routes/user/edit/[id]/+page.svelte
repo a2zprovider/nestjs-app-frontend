@@ -9,6 +9,8 @@
 
   let name = "";
   let email = "";
+  let mobile = "";
+  let whatsapp = "";
   let password = "";
   let loading = false;
   let errorMessage = "";
@@ -22,6 +24,8 @@
       const data = await authApiFetch(`users/${userId}`);
       name = data.name;
       email = data.email;
+      mobile = data.mobile;
+      whatsapp = data.whatsapp;
     } catch (err) {
       errorMessage = "Failed to load user data.";
     }
@@ -33,7 +37,7 @@
     loading = true;
     formErrors = {};
 
-    const updatedUser = { name, email };
+    const updatedUser = { name, email, mobile, whatsapp };
     if (password) updatedUser.password = password; // only send if changed
 
     try {
@@ -86,7 +90,7 @@
         <form on:submit={handleSubmit} class="needs-validation" novalidate>
           <div class="grid grid-cols-3 gap-4">
             <div>
-              <label class="form-label" for="lastname">Name</label>
+              <label class="form-label" for="name">Name</label>
               <input
                 class="form-control"
                 class:is-invalid={formErrors.name}
@@ -116,6 +120,40 @@
               {#if formErrors.email}
                 <ul class="text-danger mt-1 text-xs capitalize">
                   <li>{formErrors.email[0]}</li>
+                </ul>
+              {/if}
+            </div>
+            <div>
+              <label class="form-label" for="mobile">Mobile</label>
+              <input
+                class="form-control"
+                class:is-invalid={formErrors.mobile}
+                type="text"
+                bind:value={mobile}
+                placeholder="Mobile"
+                id="mobile"
+                required
+              />
+              {#if formErrors.mobile}
+                <ul class="text-danger mt-1 text-xs capitalize">
+                  <li>{formErrors.mobile[0]}</li>
+                </ul>
+              {/if}
+            </div>
+            <div>
+              <label class="form-label" for="whatsapp">Whatsapp</label>
+              <input
+                class="form-control"
+                class:is-invalid={formErrors.whatsapp}
+                type="text"
+                bind:value={whatsapp}
+                placeholder="Whatsapp"
+                id="whatsapp"
+                required
+              />
+              {#if formErrors.whatsapp}
+                <ul class="text-danger mt-1 text-xs capitalize">
+                  <li>{formErrors.whatsapp[0]}</li>
                 </ul>
               {/if}
             </div>
