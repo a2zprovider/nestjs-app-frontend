@@ -5,6 +5,8 @@
   import { errorHandle } from "$lib/utils/errorHandle";
   import Header from "$lib/components/Header.svelte";
   import Sidebar from "$lib/components/Sidebar.svelte";
+  import { API_ROUTES } from "$lib/constants/apiRoutes";
+  import Swal from "sweetalert2";
 
   // Form state
   let name = "";
@@ -27,12 +29,13 @@
     const newUser = { name, email, password, mobile, whatsapp };
 
     try {
-      const data = await authApiFetch("users", {
+      const data = await authApiFetch(API_ROUTES.USER, {
         method: "POST",
-        body: JSON.stringify(newUser),
+        data: JSON.stringify(newUser),
       });
       console.log("data  : ", data);
 
+      Swal.fire("Success!", data.message, "success");
       goto("/user");
     } catch (error) {
       loading = false;

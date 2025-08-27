@@ -7,20 +7,13 @@
   import Header from "$lib/components/Header.svelte";
   import Sidebar from "$lib/components/Sidebar.svelte";
   import { API_ROUTES } from "$lib/constants/apiRoutes";
+  import { checkAuth } from "$lib/utils/auth";
 
   let errorMessage = "";
   let user = null;
 
-  let userId;
-  $: userId = $page.params.id;
-
-  onMount(async () => {
-    try {
-      const data = await authApiFetch(`${API_ROUTES.USER}/${userId}`);  
-      user = data;
-    } catch (err) {
-      errorMessage = "Failed to load user data.";
-    }
+  onMount(() => {
+    user = checkAuth();
   });
   let activeTab = "Activity";
 </script>
@@ -36,12 +29,11 @@
       class="d-flex align-items-center justify-content-between gap-2 mb-4 flex-wrap"
     >
       <div>
-        <h4 class="mb-1">User</h4>
+        <h4 class="mb-1">Profile</h4>
         <nav aria-label="breadcrumb">
           <ol class="breadcrumb mb-0 p-0">
             <li class="breadcrumb-item"><a href="/">Home</a></li>
-            <li class="breadcrumb-item"><a href="/user">Users</a></li>
-            <li class="breadcrumb-item active" aria-current="page">User</li>
+            <li class="breadcrumb-item active" aria-current="page">Profile</li>
           </ol>
         </nav>
       </div>

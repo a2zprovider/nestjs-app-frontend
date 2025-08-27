@@ -6,6 +6,8 @@
   import { page } from "$app/stores";
   import Header from "$lib/components/Header.svelte";
   import Sidebar from "$lib/components/Sidebar.svelte";
+  import { API_ROUTES } from "$lib/constants/apiRoutes";
+  import Swal from "sweetalert2";
 
   let name = "";
   let email = "";
@@ -21,7 +23,7 @@
 
   onMount(async () => {
     try {
-      const data = await authApiFetch(`users/${userId}`);
+      const data = await authApiFetch(`${API_ROUTES.USER}/${userId}`);
       name = data.name;
       email = data.email;
       mobile = data.mobile;
@@ -41,11 +43,12 @@
     if (password) updatedUser.password = password; // only send if changed
 
     try {
-      const data = await authApiFetch(`users/${userId}`, {
+      const data = await authApiFetch(`${API_ROUTES.USER}/${userId}`, {
         method: "PUT",
-        body: JSON.stringify(updatedUser),
+        data: JSON.stringify(updatedUser),
       });
 
+      Swal.fire("Success!", data.message, "success");
       goto("/user");
     } catch (error) {
       loading = false;

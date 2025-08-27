@@ -73,7 +73,7 @@
   <div class="d-flex align-items-center gap-2 flex-wrap">
     <div class="dropdown">
       <a
-        href="#"
+        href="#dropdown"
         class="dropdown-toggle btn btn-outline-light px-2 shadow"
         data-bs-toggle="dropdown"
         aria-expanded="false"
@@ -84,7 +84,7 @@
         <ul class="list-unstyled m-0 p-2">
           <li>
             <a
-              href="#"
+              href="#Newest"
               class="dropdown-item"
               on:click={() => {
                 sortBy("created_at");
@@ -96,7 +96,7 @@
           </li>
           <li>
             <a
-              href="#"
+              href="#Oldest"
               class="dropdown-item"
               on:click={() => {
                 sortBy("created_at");
@@ -216,7 +216,7 @@
         <li class="page-item {currentPage === 1 ? 'disabled' : ''}">
           <a
             class="page-link"
-            href="#"
+            href="#pagePreious"
             aria-disabled={currentPage === 1}
             on:click|preventDefault={() => goToPage(currentPage - 1)}
           >
@@ -227,7 +227,7 @@
         {#each Array(totalPages) as _, i}
           <li class="page-item {i + 1 === currentPage ? 'active' : ''}">
             <a
-              href="#"
+              href="#page"
               class="page-link"
               aria-current={i + 1 === currentPage ? "page" : undefined}
               on:click|preventDefault={() => goToPage(i + 1)}
@@ -240,7 +240,7 @@
         <li class="page-item {currentPage === totalPages ? 'disabled' : ''}">
           <a
             class="page-link"
-            href="#"
+            href="#pageNext"
             aria-disabled={currentPage === totalPages}
             on:click|preventDefault={() => goToPage(currentPage + 1)}
           >

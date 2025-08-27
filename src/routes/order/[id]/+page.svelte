@@ -7,10 +7,24 @@
   import { page } from "$app/stores";
   import { authApiFetch } from "$lib/api/client";
   import { errorHandle } from "$lib/utils/errorHandle";
+  import { API_ROUTES } from "$lib/constants/apiRoutes";
+  import Swal from "sweetalert2";
 
   let errorMessage = "";
   let order = null;
+  let users = [];
   let updateMount = true;
+
+  // let showMessageModal = false;
+  // const modalProps = {
+  //   type: "success",
+  //   title: "Success!!",
+  //   message: "Order Created Successfully.",
+  //   confirmText: "Ok",
+  //   onConfirm: () => {
+  //     console.log("Ok");
+  //   },
+  // };
 
   // Form state
   let title = "";
@@ -33,10 +47,32 @@
   let address = "";
   let gstNumber = "";
 
+  let aTitle = "";
+  let link = "";
+  let file = "";
+
+  let type = "";
+  let message = "";
+
+  let seletedUsers = [];
+
   let loading = false;
 
   // Field-specific error messages
   let formErrors = {};
+
+  function closeModalMenual(id) {
+    const $ = jQuery;
+    $(id).removeClass("show d-block");
+    $(".modal-backdrop").removeClass("show");
+
+    setTimeout(() => {
+      $(".modal-backdrop").remove();
+      $(id).removeClass("d-block");
+      $("body").removeClass("modal-open");
+      $("body").css({ overflow: "", paddingRight: "" });
+    }, 300);
+  }
 
   function closeOffcanvas() {
     const $ = jQuery;
@@ -92,15 +128,14 @@
     }
 
     try {
-      const data = await authApiFetch("orders/" + order.id, {
+      const data = await authApiFetch(API_ROUTES.ORDER + "/" + order.id, {
         method: "PUT",
-        body: JSON.stringify(updateOrder),
+        data: JSON.stringify(updateOrder),
       });
       console.log("data  : ", data);
 
       order = data.data;
-      // orders = [data.data, ...orders];
-      alert(data.message);
+      Swal.fire("Success!", data.message, "success");
       closeOffcanvas();
     } catch (error) {
       loading = false;
@@ -124,15 +159,12 @@
 
   onMount(async () => {
     try {
-      const data = await authApiFetch(`orders/${orderId}`);
+      const data = await authApiFetch(`${API_ROUTES.ORDER}/${orderId}`);
       order = data;
 
       // update params
       title = data?.title;
       category = data?.category;
-      // orderDate = data?.orderDate;
-      // startDate = data?.startDate;
-      // deadlineDate = data?.deadlineDate;
       orderDate = data?.orderDate
         ? new Date(data.orderDate).toISOString().substring(0, 10)
         : "";
@@ -162,27 +194,33 @@
     }
   });
 
+  onMount(async () => {
+    try {
+      const data = await authApiFetch(API_ROUTES.USER);
+      users = data.data;
+    } catch (err) {
+      errorMessage = "Failed to load user data.";
+    }
+  });
+
   onMount(() => {
     const $ = jQuery;
-    const overlay = $('<div class="offcanvas-backdrop fade"></div>');
 
     // Open offcanvas
     $(document).on("click", "a[data-bs-target='#offcanvas_add']", function () {
+      // Remove any existing backdrop before adding a new one
+      $(".offcanvas-backdrop").remove();
+
+      // Create and insert a new backdrop
+      const overlay = $('<div class="offcanvas-backdrop fade show"></div>');
       overlay.insertBefore(".main-wrapper");
+
       $("#offcanvas_add").addClass("show");
-      $(".offcanvas-backdrop").addClass("fade show");
       $("body").css({ overflow: "hidden", paddingRight: "15px" });
     });
 
-    // Close offcanvas on clicking backdrop
-    $(document).on("click", ".offcanvas-backdrop", function () {
-      closeOffcanvas();
-    });
-
-    // Close offcanvas on clicking any element with data-bs-dismiss="offcanvas"
-    $(document).on("click", '[data-bs-dismiss="offcanvas"]', function () {
-      closeOffcanvas();
-    });
+    $(document).on("click", ".offcanvas-backdrop", closeOffcanvas);
+    $(document).on("click", '[data-bs-dismiss="offcanvas"]', closeOffcanvas);
 
     // Filter
     document.addEventListener("DOMContentLoaded", () => {
@@ -204,6 +242,166 @@
     }
     return (words[0][0] + words[1][0]).toUpperCase();
   }
+
+  async function deleteOrder(id) {
+    try {
+      Swal.fire({
+        title: "Delete Confirmation",
+        text: "Are you sure you want to delete this record.",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Yes, delete it!",
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          const data = await authApiFetch(API_ROUTES.ORDER + "/" + id, {
+            method: "DELETE",
+          });
+          Swal.fire("Deleted!", data.message, "success");
+          goto("/order");
+        }
+      });
+    } catch (error) {
+      const validationErrors = errorHandle(error);
+
+      if (validationErrors && typeof validationErrors === "object") {
+        formErrors = validationErrors;
+      } else {
+        errorMessage = "An unexpected error occurred.";
+      }
+    } finally {
+      console.log("formErrors : ", formErrors);
+    }
+  }
+
+  async function addAttachment(e) {
+    e.preventDefault();
+    errorMessage = "";
+    loading = true;
+    formErrors = {};
+
+    const attachmentPayload = {
+      title: aTitle,
+      link,
+      file,
+    };
+    if (order) {
+      attachmentPayload.orderId = order.id;
+    }
+
+    try {
+      const data = await authApiFetch(API_ROUTES.ORDER_ATTACHMENT, {
+        method: "POST",
+        data: JSON.stringify(attachmentPayload),
+      });
+
+      if (data) {
+        order.orderAttachments = [data.data, ...order.orderAttachments];
+        Swal.fire("Success!", data.message, "success");
+        closeModalMenual("#new_file");
+      }
+    } catch (error) {
+      const validationErrors = errorHandle(error);
+      console.log("validationErrors:", validationErrors);
+
+      if (validationErrors && typeof validationErrors === "object") {
+        formErrors = validationErrors;
+      } else {
+        errorMessage = "An unexpected error occurred.";
+        console.error("Unexpected error:", error);
+      }
+    } finally {
+      console.log("formErrors:", formErrors);
+      loading = false;
+    }
+  }
+
+  async function addChat(e) {
+    e.preventDefault();
+    errorMessage = "";
+    loading = true;
+    formErrors = {};
+
+    const chatPayload = {
+      type,
+      message,
+    };
+    if (order) {
+      chatPayload.orderId = order.id;
+    }
+
+    try {
+      const data = await authApiFetch(API_ROUTES.ORDER_CHAT, {
+        method: "POST",
+        data: JSON.stringify(chatPayload),
+      });
+
+      if (data) {
+        console.log("data : ", data);
+        console.log("order.orderChats - old : ", order.orderChats);
+        order.orderChats = [data.data, ...order.orderChats];
+        console.log("order : ", order);
+
+        Swal.fire("Success!", data.message, "success");
+        closeModalMenual("#create_call");
+      }
+    } catch (error) {
+      const validationErrors = errorHandle(error);
+      console.log("validationErrors:", validationErrors);
+
+      if (validationErrors && typeof validationErrors === "object") {
+        formErrors = validationErrors;
+      } else {
+        errorMessage = "An unexpected error occurred.";
+        console.error("Unexpected error:", error);
+      }
+    } finally {
+      console.log("formErrors:", formErrors);
+      loading = false;
+    }
+  }
+
+  async function addAssignedUser(event) {
+    event.preventDefault();
+    errorMessage = "";
+    loading = true;
+    formErrors = {};
+
+    const updateOrder = {
+      title,
+    };
+    let newAssignedUsers = [];
+    newAssignedUsers = seletedUsers
+      .map((id) => users.find((u) => u.id === id))
+      .filter(Boolean);
+    updateOrder.assignedUsers = [...newAssignedUsers, ...order.assignedUsers];
+
+    try {
+      const data = await authApiFetch(API_ROUTES.ORDER + "/" + order.id, {
+        method: "PUT",
+        data: JSON.stringify(updateOrder),
+      });
+      console.log("data  : ", data);
+
+      order = data.data;
+      Swal.fire("Success!", data.message, "success");
+      closeModalMenual("#add_contact");
+    } catch (error) {
+      loading = false;
+      const validationErrors = errorHandle(error);
+      console.log("validationErrors : ", validationErrors);
+
+      if (validationErrors && typeof validationErrors === "object") {
+        formErrors = validationErrors;
+      } else {
+        errorMessage = "An unexpected error occurred.";
+      }
+    } finally {
+      console.log("formErrors : ", formErrors);
+
+      loading = false;
+    }
+  }
+
   let activeTab = "Activity";
 </script>
 
@@ -230,7 +428,7 @@
       <div class="gap-2 d-flex align-items-center flex-wrap">
         <div class="dropdown">
           <a
-            href="javascript:void(0);"
+            href="#tag"
             class="dropdown-toggle btn btn-outline-light px-2 shadow"
             data-bs-toggle="dropdown"
             ><i class="ti ti-package-export me-2"></i>Export</a
@@ -238,12 +436,12 @@
           <div class="dropdown-menu dropdown-menu-end">
             <ul>
               <li>
-                <a href="javascript:void(0);" class="dropdown-item"
+                <a href="#tag" class="dropdown-item"
                   ><i class="ti ti-file-type-pdf me-1"></i>Export as PDF</a
                 >
               </li>
               <li>
-                <a href="javascript:void(0);" class="dropdown-item"
+                <a href="#tag" class="dropdown-item"
                   ><i class="ti ti-file-type-xls me-1"></i>Export as Excel
                 </a>
               </li>
@@ -251,7 +449,7 @@
           </div>
         </div>
         <a
-          href="javascript:void(0);"
+          href="#Refresh"
           class="btn btn-icon btn-outline-light shadow"
           data-bs-toggle="tooltip"
           data-bs-placement="top"
@@ -259,7 +457,7 @@
           data-bs-original-title="Refresh"><i class="ti ti-refresh"></i></a
         >
         <a
-          href="javascript:void(0);"
+          href="#Collapse"
           class="btn btn-icon btn-outline-light shadow"
           data-bs-toggle="tooltip"
           data-bs-placement="top"
@@ -270,7 +468,6 @@
       </div>
     </div>
     <!-- End Page Header -->
-
     {#if order}
       <div class="row">
         <div class="col-md-12">
@@ -281,8 +478,14 @@
               </a>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
+              <button
+                class="btn btn-secondary"
+                on:click={() => deleteOrder(order?.id)}
+              >
+                <i class="ti ti-trash me-1"></i>Delete Order
+              </button>
               <a
-                href="javascript:void(0);"
+                href="#offcanvas_add"
                 class="btn btn-primary"
                 data-bs-toggle="offcanvas"
                 data-bs-target="#offcanvas_add"
@@ -327,7 +530,7 @@
                   </span> -->
                   <div class="dropdown">
                     <a
-                      href="#"
+                      href="#status"
                       class="btn btn-xs btn-success fs-12 py-1 px-2 fw-medium d-inline-flex align-items-center"
                       data-bs-toggle="dropdown"
                       aria-expanded="false"
@@ -337,11 +540,8 @@
                       ></i>
                     </a>
                     <div class="dropdown-menu dropdown-menu-right">
-                      <a class="dropdown-item" href="javascript:void(0);"
-                        ><span>Won</span></a
-                      >
-                      <a class="dropdown-item" href="javascript:void(0);"
-                        ><span>Lost</span></a
+                      <a class="dropdown-item" href="#won"><span>Won</span></a>
+                      <a class="dropdown-item" href="#lost"><span>Lost</span></a
                       >
                     </div>
                   </div>
@@ -447,13 +647,11 @@
               </div>
               <!-- <h6 class="mb-3 fw-semibold">Tags</h6>
               <div class="border-bottom mb-3 pb-3">
-                <a
-                  href="javascript:void(0);"
-                  class="badge badge-soft-success fw-medium me-2">Collab</a
+                <a href="#tag" class="badge badge-soft-success fw-medium me-2"
+                  >Collab</a
                 >
-                <a
-                  href="javascript:void(0);"
-                  class="badge badge-soft-warning fw-medium mb-0">VIP</a
+                <a href="#tag" class="badge badge-soft-warning fw-medium mb-0"
+                  >VIP</a
                 >
               </div>
               <h6 class="mb-3 fw-semibold">Priority</h6>
@@ -473,46 +671,36 @@
                   >Margrate Design</span
                 >
               </div> -->
-              <!-- <div
+              <div
                 class="d-flex align-items-center justify-content-between flex-wrap"
               >
-                <h6 class="mb-3 fw-semibold">Conracts</h6>
+                <h6 class="mb-3 fw-semibold">Assigned Users</h6>
                 <a
-                  href="javascript:void(0);"
+                  href="#tag"
                   class="link-primary mb-3"
                   data-bs-toggle="modal"
                   data-bs-target="#add_contact"
-                  ><i class="ti ti-plus me-1"></i>Add New</a
                 >
+                  <i class="ti ti-plus me-1"></i>Add New
+                </a>
               </div>
-              <div class="mb-3">
-                <div class="d-flex align-items-center">
-                  <span class="avatar avatar-xs rounded-circle me-2">
-                    <img
-                      src="/assets/img/users/avatar-3.jpg"
-                      alt="Img"
-                      class="img-fluid rounded-circle w-auto h-auto"
-                    />
-                  </span>
-                  <div>
-                    <p class="mb-0">Steve Vaughan</p>
+
+              {#each order.assignedUsers as assignedUser}
+                <div class="mb-3">
+                  <div class="d-flex align-items-center">
+                    <span class="avatar avatar-xs rounded-circle me-2">
+                      <img
+                        src="/assets/img/users/avatar-3.jpg"
+                        alt="Img"
+                        class="img-fluid rounded-circle w-auto h-auto"
+                      />
+                    </span>
+                    <div>
+                      <p class="mb-0">{assignedUser?.name}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div class="mb-3">
-                <div class="d-flex align-items-center">
-                  <span class="avatar avatar-xs rounded-circle me-2">
-                    <img
-                      src="/assets/img/users/avatar-4.jpg"
-                      alt="Img"
-                      class="img-fluid rounded-circle w-auto h-auto"
-                    />
-                  </span>
-                  <div>
-                    <p class="mb-0">Jessica Sen</p>
-                  </div>
-                </div>
-              </div> -->
+              {/each}
               <div
                 class="d-flex align-items-center justify-content-between mb-2"
               >
@@ -542,7 +730,7 @@
                     />
                   </span>
                   <div>
-                    <p class="mb-0">{order?.user?.name}</p>
+                    <p class="mb-0">{order?.assignedUsers[0]?.name}</p>
                   </div>
                 </div>
               </div>
@@ -588,14 +776,14 @@
                     data-bs-toggle="tab"
                     aria-expanded="true"
                     class="nav-link border-3"
-                    class:active={activeTab === "Notes"}
-                    on:click|preventDefault={() => (activeTab = "Notes")}
-                    aria-selected={activeTab === "Notes"}
+                    class:active={activeTab === "Files"}
+                    on:click|preventDefault={() => (activeTab = "Files")}
+                    aria-selected={activeTab === "Files"}
                     role="tab"
                     tabindex="-1"
                   >
                     <span class="d-md-inline-block">
-                      <i class="ti ti-notes me-1"></i>Notes
+                      <i class="ti ti-file me-1"></i>Files
                     </span>
                   </a>
                 </li>
@@ -605,31 +793,14 @@
                     data-bs-toggle="tab"
                     aria-expanded="false"
                     class="nav-link border-3"
-                    class:active={activeTab === "Calls"}
-                    on:click|preventDefault={() => (activeTab = "Calls")}
-                    aria-selected={activeTab === "Calls"}
+                    class:active={activeTab === "Chats"}
+                    on:click|preventDefault={() => (activeTab = "Chats")}
+                    aria-selected={activeTab === "Chats"}
                     tabindex="-1"
                     role="tab"
                   >
                     <span class="d-md-inline-block">
-                      <i class="ti ti-phone me-1"></i>Calls
-                    </span>
-                  </a>
-                </li>
-                <li class="nav-item" role="presentation">
-                  <a
-                    href="#tab_4"
-                    data-bs-toggle="tab"
-                    aria-expanded="false"
-                    class="nav-link border-3"
-                    class:active={activeTab === "Files"}
-                    on:click|preventDefault={() => (activeTab = "Files")}
-                    aria-selected={activeTab === "Files"}
-                    tabindex="-1"
-                    role="tab"
-                  >
-                    <span class="d-md-inline-block">
-                      <i class="ti ti-file me-1"></i>Files
+                      <i class="ti ti-brand-hipchat me-1"></i>Chats
                     </span>
                   </a>
                 </li>
@@ -692,158 +863,167 @@
               <!-- /Activities -->
             {/if}
 
-            {#if activeTab === "Notes"}
-              <!-- Notes -->
+            {#if activeTab === "Files"}
+              <!-- Files -->
               <div class="tab-pane active show" id="tab_2">
                 <div class="card">
                   <div
                     class="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3"
                   >
-                    <h5 class="fw-semibold mb-0">Notes</h5>
+                    <h5 class="fw-semibold mb-0">Files</h5>
+
+                    <div class="d-inline-flex align-items-center">
+                      <div class="dropdown me-2">
+                        <a
+                          href="#tag"
+                          class="dropdown-toggle btn btn-outline-light px-2 shadow"
+                          data-bs-toggle="dropdown"
+                          ><i class="ti ti-sort-ascending-2 me-2"></i>Sort By</a
+                        >
+                        <div class="dropdown-menu">
+                          <ul>
+                            <li>
+                              <a href="#Newest" class="dropdown-item">Newest</a>
+                            </li>
+                            <li>
+                              <a href="#Oldest" class="dropdown-item">Oldest</a>
+                            </li>
+                          </ul>
+                        </div>
+                      </div>
+                      <button
+                        href="#new_file"
+                        data-bs-toggle="modal"
+                        data-bs-target="#new_file"
+                        class="link-primary fw-medium"
+                        ><i class="ti ti-circle-plus me-1"></i>Add New</button
+                      >
+                    </div>
                   </div>
                   <div class="card-body">
                     <div class="notes-activity">
-                      <div class="card mb-3">
-                        <div class="card-body">
-                          <div
-                            class="d-flex align-items-center justify-content-between flex-wrap row-gap-2 pb-2"
-                          >
-                            <div class="d-inline-flex align-items-center mb-2">
-                              <span class="avatar avatar-md me-2 flex-shrink-0">
-                                <img
-                                  src="/assets/img/profiles/avatar-19.jpg"
-                                  alt="img"
-                                />
-                              </span>
-                              <div>
-                                <h6 class="fw-medium fs-14 mb-1">
-                                  Darlee Robertson
-                                </h6>
-                                <p class="mb-0 fs-13">15 Sep 2023, 12:10 pm</p>
-                              </div>
-                            </div>
-                            <div class="mb-2">
-                              <div class="dropdown">
-                                <a
-                                  href="#"
-                                  class="action-icon btn btn-icon btn-sm btn-outline-light shadow"
-                                  data-bs-toggle="dropdown"
-                                  aria-expanded="false"
-                                  ><i class="ti ti-dots-vertical"></i></a
-                                >
-                                <div class="dropdown-menu dropdown-menu-right">
-                                  <a
-                                    class="dropdown-item"
-                                    href="javascript:void(0);"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#edit_notes"
-                                    ><i class="ti ti-edit me-1"></i>Edit</a
-                                  >
-                                  <a
-                                    class="dropdown-item"
-                                    href="javascript:void(0);"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#delete_note"
-                                    ><i class="ti ti-trash me-1"></i>Delete</a
-                                  >
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                          <h5 class="fw-medium fs-14 mb-1">
-                            Notes added by Antony
-                          </h5>
-                          <p class="mb-3">
-                            A project review evaluates the success of an
-                            initiative and identifies areas for improvement. It
-                            can also evaluate a current project to determine
-                            whether it's on the right track. Or, it can
-                            determine the success of a completed project.
-                          </p>
-                          <div class="row">
-                            <div class="col-xxl-4 col-lg-5">
-                              <div class="card">
-                                <div class="card-body p-2">
-                                  <div
-                                    class="d-flex align-items-center justify-content-between flex-wrap row-gap-3"
-                                  >
-                                    <div class="d-flex align-items-center me-3">
-                                      <span class="avatar bg-success me-2">
-                                        <i class="ti ti-file-spreadsheet fs-20"
-                                        ></i>
-                                      </span>
-                                      <div>
-                                        <h6 class="fw-medium fs-14 mb-1">
-                                          Project Specs.xls
-                                        </h6>
-                                        <p class="mb-0">365 KB</p>
-                                      </div>
-                                    </div>
-                                    <a
-                                      href="javascript:void(0);"
-                                      class="avatar avatar-xs rounded-circle bg-light text-dark"
-                                      ><i class="ti ti-arrow-down"></i></a
-                                    >
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                            <div class="col-xxl-4 col-lg-5">
-                              <div class="card bg-light">
-                                <div class="card-body p-2">
-                                  <div
-                                    class="d-flex align-items-center justify-content-between flex-wrap row-gap-3"
-                                  >
-                                    <div class="d-flex align-items-center me-3">
-                                      <span class="avatar bg-success me-2">
-                                        <img
-                                          src="/assets/img/media/media-35.jpg"
-                                          alt="img"
-                                        />
-                                      </span>
-                                      <div>
-                                        <h6 class="fw-medium fs-14 mb-1">
-                                          637.jpg
-                                        </h6>
-                                        <p class="mb-0">365 KB</p>
-                                      </div>
-                                    </div>
-                                    <a
-                                      href="javascript:void(0);"
-                                      class="avatar avatar-xs rounded-circle bg-white text-dark"
-                                      ><i class="ti ti-arrow-down"></i></a
-                                    >
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                          <div class="notes-editor">
-                            <div class="note-edit-wrap">
-                              <div class="editor pages-editor"></div>
-                              <div class="text-end note-btns mt-3">
-                                <a
-                                  href="javascript:void(0);"
-                                  class="btn btn-light add-cancel me-2"
-                                  >Cancel</a
-                                >
-                                <a
-                                  href="javascript:void(0);"
-                                  class="btn btn-primary">Save</a
-                                >
-                              </div>
-                            </div>
-                            <div class="text-end mt-2">
-                              <a
-                                href="javascript:void(0);"
-                                class="add-comment link-primary fw-medium"
-                                ><i class="ti ti-circle-plus me-1"></i>Add
-                                Comment</a
+                      {#if order?.orderAttachments.length}
+                        {#each order.orderAttachments as attachment}
+                          <div class="card mb-3">
+                            <div class="card-body">
+                              <div
+                                class="d-flex align-items-center justify-content-between flex-wrap row-gap-2 pb-2"
                               >
+                                <div
+                                  class="d-inline-flex align-items-center mb-2"
+                                >
+                                  <span
+                                    class="avatar avatar-md me-2 flex-shrink-0"
+                                  >
+                                    <img
+                                      src="/assets/img/profiles/avatar-19.jpg"
+                                      alt="img"
+                                    />
+                                  </span>
+                                  <div>
+                                    <h6 class="fw-medium fs-14 mb-1">
+                                      {attachment?.user?.name}
+                                    </h6>
+                                    <p class="mb-0 fs-13">
+                                      {attachment?.createdAt &&
+                                        new Date(
+                                          attachment.createdAt
+                                        ).toLocaleString("en-GB", {
+                                          day: "2-digit",
+                                          month: "short",
+                                          year: "numeric",
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                          hour12: true,
+                                        })}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div class="mb-2">
+                                  <div class="dropdown">
+                                    <a
+                                      href="#dropdown"
+                                      class="action-icon btn btn-icon btn-sm btn-outline-light shadow"
+                                      data-bs-toggle="dropdown"
+                                      aria-expanded="false"
+                                    >
+                                      <i class="ti ti-dots-vertical"></i>
+                                    </a>
+                                    <div
+                                      class="dropdown-menu dropdown-menu-right"
+                                    >
+                                      <a
+                                        class="dropdown-item"
+                                        href="#tag"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#edit_notes"
+                                        ><i class="ti ti-edit me-1"></i>Edit</a
+                                      >
+                                      <a
+                                        class="dropdown-item"
+                                        href="#tag"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#delete_note"
+                                        ><i class="ti ti-trash me-1"
+                                        ></i>Delete</a
+                                      >
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                              <h5 class="fw-medium fs-14 mb-1">
+                                {attachment?.title}
+                              </h5>
+                              <p class:mb-3={attachment?.file}>
+                                {#if attachment?.link}
+                                  Attachment Link :
+                                  <a href={attachment?.link} target="_blank"
+                                    >{attachment?.link}</a
+                                  >
+                                {/if}
+                              </p>
+                              {#if attachment?.file}
+                                <div class="row">
+                                  <div class="col-xxl-4 col-lg-5">
+                                    <div class="card">
+                                      <div class="card-body p-2">
+                                        <div
+                                          class="d-flex align-items-center justify-content-between flex-wrap row-gap-3"
+                                        >
+                                          <div
+                                            class="d-flex align-items-center me-3"
+                                          >
+                                            <span
+                                              class="avatar bg-success me-2"
+                                            >
+                                              <i
+                                                class="ti ti-file-spreadsheet fs-20"
+                                              ></i>
+                                            </span>
+                                            <div>
+                                              <h6 class="fw-medium fs-14 mb-1">
+                                                Project Specs.xls
+                                              </h6>
+                                              <p class="mb-0">365 KB</p>
+                                            </div>
+                                          </div>
+                                          <a
+                                            href="#tag"
+                                            class="avatar avatar-xs rounded-circle bg-light text-dark"
+                                            ><i class="ti ti-arrow-down"></i></a
+                                          >
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              {/if}
                             </div>
                           </div>
-                        </div>
-                      </div>
+                        {/each}
+                      {:else}
+                        <div>No attachments found.</div>
+                      {/if}
                     </div>
                   </div>
                 </div>
@@ -851,17 +1031,17 @@
               <!-- /Notes -->
             {/if}
 
-            {#if activeTab === "Calls"}
-              <!-- Calls -->
+            {#if activeTab === "Chats"}
+              <!-- Chats -->
               <div class="tab-pane active show" id="tab_3">
                 <div class="card">
                   <div
                     class="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3"
                   >
-                    <h5 class="fw-semibold mb-0">Calls</h5>
+                    <h5 class="fw-semibold mb-0">Chats</h5>
                     <div class="d-inline-flex align-items-center">
                       <a
-                        href="javascript:void(0);"
+                        href="#create_call"
                         data-bs-toggle="modal"
                         data-bs-target="#create_call"
                         class="link-primary fw-medium"
@@ -870,524 +1050,117 @@
                     </div>
                   </div>
                   <div class="card-body">
-                    <div class="card mb-3">
-                      <div class="card-body">
-                        <div
-                          class="d-sm-flex align-items-center justify-content-between pb-2"
-                        >
-                          <div class="d-flex align-items-center mb-2">
-                            <span class="avatar avatar-md me-2 flex-shrink-0">
-                              <img
-                                src="/assets/img/profiles/avatar-19.jpg"
-                                alt="img"
-                              />
-                            </span>
-                            <p class="mb-0">
-                              <span class="text-dark fw-medium"
-                                >Darlee Robertson</span
+                    {#if order?.orderChats.length}
+                      {#each order.orderChats as chat}
+                        <div class="card mb-3">
+                          <div class="card-body">
+                            <div
+                              class="d-sm-flex align-items-center justify-content-between pb-2"
+                            >
+                              <div class="d-flex align-items-center mb-2">
+                                <span
+                                  class="avatar avatar-md me-2 flex-shrink-0"
+                                >
+                                  <img
+                                    src="/assets/img/profiles/avatar-19.jpg"
+                                    alt="img"
+                                  />
+                                </span>
+                                <p class="mb-0">
+                                  <span class="text-dark fw-medium"
+                                    >{order?.user?.name}</span
+                                  >
+                                  ........ on {chat?.createdAt &&
+                                    new Date(chat.createdAt).toLocaleString(
+                                      "en-GB",
+                                      {
+                                        day: "2-digit",
+                                        month: "short",
+                                        year: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                        hour12: true,
+                                      }
+                                    )}
+                                </p>
+                              </div>
+                              <div
+                                class="d-inline-flex align-items-center mb-2"
                               >
-                              logged a call on 23 Jul 2023, 10:00 pm
+                                <div class="dropdown me-2">
+                                  <a
+                                    href="#dropdown"
+                                    class="btn btn-sm btn-outline-light"
+                                    data-bs-toggle="dropdown"
+                                    aria-expanded="false"
+                                    >Busy<i class="ti ti-chevron-down ms-2"
+                                    ></i></a
+                                  >
+                                  <div
+                                    class="dropdown-menu dropdown-menu-right"
+                                  >
+                                    <a class="dropdown-item" href="#busy"
+                                      >Busy</a
+                                    >
+                                    <a class="dropdown-item" href="#tag"
+                                      >No Answer</a
+                                    >
+                                    <a class="dropdown-item" href="#tag"
+                                      >Unavailable</a
+                                    >
+                                    <a class="dropdown-item" href="#tag"
+                                      >Wrong Number</a
+                                    >
+                                    <a class="dropdown-item" href="#tag"
+                                      >Left Voice Message</a
+                                    >
+                                    <a class="dropdown-item" href="#tag"
+                                      >Moving Forward</a
+                                    >
+                                  </div>
+                                </div>
+                                <div class="dropdown">
+                                  <a
+                                    href="#dropdown"
+                                    class="action-icon btn btn-icon btn-sm btn-outline-light shadow"
+                                    data-bs-toggle="dropdown"
+                                    aria-expanded="false"
+                                    ><i class="ti ti-dots-vertical"></i></a
+                                  >
+                                  <div
+                                    class="dropdown-menu dropdown-menu-right"
+                                  >
+                                    <a
+                                      class="dropdown-item"
+                                      href="#tag"
+                                      data-bs-toggle="modal"
+                                      data-bs-target="#edit_call"
+                                      ><i class="ti ti-edit me-1"></i>Edit</a
+                                    >
+                                    <a
+                                      class="dropdown-item"
+                                      href="#tag"
+                                      data-bs-toggle="modal"
+                                      data-bs-target="#delete_call"
+                                      ><i class="ti ti-trash me-1"></i>Delete</a
+                                    >
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            <p class="mb-0">
+                              {chat?.message}
                             </p>
                           </div>
-                          <div class="d-inline-flex align-items-center mb-2">
-                            <div class="dropdown me-2">
-                              <a
-                                href="#"
-                                class="btn btn-sm btn-outline-light"
-                                data-bs-toggle="dropdown"
-                                aria-expanded="false"
-                                >Busy<i class="ti ti-chevron-down ms-2"></i></a
-                              >
-                              <div class="dropdown-menu dropdown-menu-right">
-                                <a
-                                  class="dropdown-item"
-                                  href="javascript:void(0);">Busy</a
-                                >
-                                <a
-                                  class="dropdown-item"
-                                  href="javascript:void(0);">No Answer</a
-                                >
-                                <a
-                                  class="dropdown-item"
-                                  href="javascript:void(0);">Unavailable</a
-                                >
-                                <a
-                                  class="dropdown-item"
-                                  href="javascript:void(0);">Wrong Number</a
-                                >
-                                <a
-                                  class="dropdown-item"
-                                  href="javascript:void(0);"
-                                  >Left Voice Message</a
-                                >
-                                <a
-                                  class="dropdown-item"
-                                  href="javascript:void(0);">Moving Forward</a
-                                >
-                              </div>
-                            </div>
-                            <div class="dropdown">
-                              <a
-                                href="#"
-                                class="action-icon btn btn-icon btn-sm btn-outline-light shadow"
-                                data-bs-toggle="dropdown"
-                                aria-expanded="false"
-                                ><i class="ti ti-dots-vertical"></i></a
-                              >
-                              <div class="dropdown-menu dropdown-menu-right">
-                                <a
-                                  class="dropdown-item"
-                                  href="javascript:void(0);"
-                                  data-bs-toggle="modal"
-                                  data-bs-target="#edit_call"
-                                  ><i class="ti ti-edit me-1"></i>Edit</a
-                                >
-                                <a
-                                  class="dropdown-item"
-                                  href="javascript:void(0);"
-                                  data-bs-toggle="modal"
-                                  data-bs-target="#delete_call"
-                                  ><i class="ti ti-trash me-1"></i>Delete</a
-                                >
-                              </div>
-                            </div>
-                          </div>
                         </div>
-                        <p class="mb-0">
-                          A project review evaluates the success of an
-                          initiative and identifies areas for improvement. It
-                          can also evaluate a current project to determine
-                          whether it's on the right track. Or, it can determine
-                          the success of a completed project.
-                        </p>
-                      </div>
-                    </div>
-                    <div class="card mb-3">
-                      <div class="card-body">
-                        <div
-                          class="d-sm-flex align-items-center justify-content-between pb-2"
-                        >
-                          <div class="d-flex align-items-center mb-2">
-                            <span class="avatar avatar-md me-2 flex-shrink-0">
-                              <img
-                                src="/assets/img/profiles/avatar-20.jpg"
-                                alt="img"
-                              />
-                            </span>
-                            <p class="mb-0">
-                              <span class="text-dark fw-medium">Sharon Roy</span
-                              >
-                              logged a call on 18 Sep 2025, 09:52AM
-                            </p>
-                          </div>
-                          <div class="d-inline-flex align-items-center mb-2">
-                            <div class="dropdown me-2">
-                              <a
-                                href="#"
-                                class="btn btn-sm btn-outline-light"
-                                data-bs-toggle="dropdown"
-                                aria-expanded="false"
-                                >No Answrer<i class="ti ti-chevron-down ms-2"
-                                ></i></a
-                              >
-                              <div class="dropdown-menu dropdown-menu-right">
-                                <a
-                                  class="dropdown-item"
-                                  href="javascript:void(0);">No Answrer</a
-                                >
-                                <a
-                                  class="dropdown-item"
-                                  href="javascript:void(0);">Unavailable</a
-                                >
-                                <a
-                                  class="dropdown-item"
-                                  href="javascript:void(0);">Wrong Number</a
-                                >
-                                <a
-                                  class="dropdown-item"
-                                  href="javascript:void(0);"
-                                  >Left Voice Message</a
-                                >
-                                <a
-                                  class="dropdown-item"
-                                  href="javascript:void(0);">Moving Forward</a
-                                >
-                              </div>
-                            </div>
-                            <div class="dropdown">
-                              <a
-                                href="#"
-                                class="action-icon btn btn-icon btn-sm btn-outline-light shadow"
-                                data-bs-toggle="dropdown"
-                                aria-expanded="false"
-                                ><i class="ti ti-dots-vertical"></i></a
-                              >
-                              <div class="dropdown-menu dropdown-menu-right">
-                                <a
-                                  class="dropdown-item"
-                                  href="javascript:void(0);"
-                                  data-bs-toggle="modal"
-                                  data-bs-target="#edit_call"
-                                  ><i class="ti ti-edit me-1"></i>Edit</a
-                                >
-                                <a
-                                  class="dropdown-item"
-                                  href="javascript:void(0);"
-                                  data-bs-toggle="modal"
-                                  data-bs-target="#delete_call"
-                                  ><i class="ti ti-trash me-1"></i>Delete</a
-                                >
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <p class="mb-0">
-                          A project plan typically contains a list of the
-                          essential elements of a project, such as stakeholders,
-                          scope, timelines, estimated cost and communication
-                          methods. The project manager typically lists the
-                          information based on the assignment.
-                        </p>
-                      </div>
-                    </div>
-                    <div class="card mb-0">
-                      <div class="card-body">
-                        <div
-                          class="d-sm-flex align-items-center justify-content-between pb-2"
-                        >
-                          <div class="d-flex align-items-center mb-2">
-                            <span class="avatar avatar-md me-2 flex-shrink-0">
-                              <img
-                                src="/assets/img/profiles/avatar-21.jpg"
-                                alt="img"
-                              />
-                            </span>
-                            <p class="mb-0">
-                              <span class="text-dark fw-medium">Vaughan</span>
-                              logged a call on 20 Sep 2025, 10:26 PM
-                            </p>
-                          </div>
-                          <div class="d-inline-flex align-items-center mb-2">
-                            <div class="dropdown me-2">
-                              <a
-                                href="#"
-                                class="btn btn-sm btn-outline-light"
-                                data-bs-toggle="dropdown"
-                                aria-expanded="false"
-                                >No Answrer<i class="ti ti-chevron-down ms-2"
-                                ></i></a
-                              >
-                              <div class="dropdown-menu dropdown-menu-right">
-                                <a
-                                  class="dropdown-item"
-                                  href="javascript:void(0);">No Answrer</a
-                                >
-                                <a
-                                  class="dropdown-item"
-                                  href="javascript:void(0);">Unavailable</a
-                                >
-                                <a
-                                  class="dropdown-item"
-                                  href="javascript:void(0);">Wrong Number</a
-                                >
-                                <a
-                                  class="dropdown-item"
-                                  href="javascript:void(0);"
-                                  >Left Voice Message</a
-                                >
-                                <a
-                                  class="dropdown-item"
-                                  href="javascript:void(0);">Moving Forward</a
-                                >
-                              </div>
-                            </div>
-                            <div class="dropdown">
-                              <a
-                                href="#"
-                                class="action-icon btn btn-icon btn-sm btn-outline-light shadow"
-                                data-bs-toggle="dropdown"
-                                aria-expanded="false"
-                                ><i class="ti ti-dots-vertical"></i></a
-                              >
-                              <div class="dropdown-menu dropdown-menu-right">
-                                <a
-                                  class="dropdown-item"
-                                  href="javascript:void(0);"
-                                  data-bs-toggle="modal"
-                                  data-bs-target="#edit_call"
-                                  ><i class="ti ti-edit me-1"></i>Edit</a
-                                >
-                                <a
-                                  class="dropdown-item"
-                                  href="javascript:void(0);"
-                                  data-bs-toggle="modal"
-                                  data-bs-target="#delete_call"
-                                  ><i class="ti ti-trash me-1"></i>Delete</a
-                                >
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <p class="mb-0">
-                          Projects play a crucial role in the success of
-                          organizations, and their importance cannot be
-                          overstated. Whether it's launching a new product,
-                          improving an existing
-                        </p>
-                      </div>
-                    </div>
+                      {/each}
+                    {:else}
+                      <div>No chats found.</div>
+                    {/if}
                   </div>
                 </div>
               </div>
-              <!-- /Calls -->
-            {/if}
-
-            {#if activeTab === "Files"}
-              <!-- Files -->
-              <div class="tab-pane active show" id="tab_4">
-                <div class="card">
-                  <div class="card-header">
-                    <h5 class="fw-semibold mb-0">Files</h5>
-                  </div>
-                  <div class="card-body">
-                    <div class="card border mb-3">
-                      <div class="card-body pb-0">
-                        <div class="row align-items-center">
-                          <div class="col-md-8">
-                            <div class="mb-3">
-                              <h6 class="mb-1">Manage Documents</h6>
-                              <p>
-                                Send customizable quotes, proposals and
-                                contracts to close deals faster.
-                              </p>
-                            </div>
-                          </div>
-                          <div class="col-md-4 text-md-end">
-                            <div class="mb-3">
-                              <a
-                                href="#"
-                                class="btn btn-primary"
-                                data-bs-toggle="modal"
-                                data-bs-target="#new_file">Create Document</a
-                              >
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="card border shadow-none mb-3">
-                      <div class="card-body pb-0">
-                        <div class="row align-items-center">
-                          <div class="col-md-8">
-                            <div class="mb-3">
-                              <h6 class="fw-semibold fs-14 mb-1">
-                                Collier-Turner Proposal
-                              </h6>
-                              <p>
-                                Send customizable quotes, proposals and
-                                contracts to close deals faster.
-                              </p>
-                              <div
-                                class="d-flex align-items-center flex-wrap row-gap-2"
-                              >
-                                <span
-                                  class="avatar avatar-md me-2 flex-shrink-0"
-                                >
-                                  <img
-                                    src="/assets/img/profiles/avatar-21.jpg"
-                                    alt="img"
-                                    class="rounded-circle"
-                                  />
-                                </span>
-                                <div class="d-flex align-items-center">
-                                  <p class="mb-0 me-2">Vaughan Lewis</p>
-                                  <span class="badge bg-light text-body"
-                                    >Owner</span
-                                  >
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                          <div class="col-md-4 text-md-end">
-                            <div class="mb-3 d-inline-flex align-items-center">
-                              <span class="badge badge-soft-danger me-1"
-                                >Proposal</span
-                              >
-                              <span class="badge bg-info me-1">Draft</span>
-                              <div class="dropdown">
-                                <a
-                                  href="#"
-                                  class="action-icon btn btn-icon btn-sm btn-outline-light shadow"
-                                  data-bs-toggle="dropdown"
-                                  aria-expanded="false"
-                                  ><i class="ti ti-dots-vertical"></i></a
-                                >
-                                <div class="dropdown-menu dropdown-menu-right">
-                                  <a
-                                    class="dropdown-item"
-                                    href="javascript:void(0);"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#delete_file"
-                                  >
-                                    <i class="ti ti-trash me-1"></i>Delete
-                                  </a>
-                                  <a
-                                    class="dropdown-item"
-                                    href="javascript:void(0);"
-                                  >
-                                    <i class="ti ti-download me-1"></i>Download
-                                  </a>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="card border shadow-none mb-3">
-                      <div class="card-body pb-0">
-                        <div class="row align-items-center">
-                          <div class="col-md-8">
-                            <div class="mb-3">
-                              <h6 class="fw-semibold fs-14 mb-1">
-                                Collier-Turner Proposal
-                              </h6>
-                              <p>
-                                Send customizable quotes, proposals and
-                                contracts to close deals faster.
-                              </p>
-                              <div
-                                class="d-flex align-items-center flex-wrap row-gap-2"
-                              >
-                                <span
-                                  class="avatar avatar-md me-2 flex-shrink-0"
-                                >
-                                  <img
-                                    src="/assets/img/profiles/avatar-01.jpg"
-                                    alt="img"
-                                    class="rounded-circle"
-                                  />
-                                </span>
-                                <div class="d-flex align-items-center">
-                                  <p class="mb-0 me-2">Jessica Louise</p>
-                                  <span class="badge bg-light text-body"
-                                    >Owner</span
-                                  >
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                          <div class="col-md-4 text-md-end">
-                            <div class="mb-3 d-inline-flex align-items-center">
-                              <span class="badge badge-purple-light me-1"
-                                >Quote</span
-                              >
-                              <span class="badge bg-success me-1">Sent</span>
-                              <div class="dropdown">
-                                <a
-                                  href="#"
-                                  class="action-icon btn btn-icon btn-sm btn-outline-light shadow"
-                                  data-bs-toggle="dropdown"
-                                  aria-expanded="false"
-                                  ><i class="ti ti-dots-vertical"></i></a
-                                >
-                                <div class="dropdown-menu dropdown-menu-right">
-                                  <a
-                                    class="dropdown-item"
-                                    href="javascript:void(0);"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#delete_file"
-                                  >
-                                    <i class="ti ti-trash me-1"></i>Delete
-                                  </a>
-                                  <a
-                                    class="dropdown-item"
-                                    href="javascript:void(0);"
-                                  >
-                                    <i class="ti ti-download me-1"></i>Download
-                                  </a>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="card border shadow-none mb-0">
-                      <div class="card-body pb-0">
-                        <div class="row align-items-center">
-                          <div class="col-md-8">
-                            <div class="mb-3">
-                              <h6 class="fw-semibold fs-14 mb-1">
-                                Collier-Turner Proposal
-                              </h6>
-                              <p>
-                                Send customizable quotes, proposals and
-                                contracts to close deals faster.
-                              </p>
-                              <div
-                                class="d-flex align-items-center flex-wrap row-gap-2"
-                              >
-                                <span
-                                  class="avatar avatar-md me-2 flex-shrink-0"
-                                >
-                                  <img
-                                    src="/assets/img/profiles/avatar-22.jpg"
-                                    alt="img"
-                                    class="rounded-circle"
-                                  />
-                                </span>
-                                <div class="d-flex align-items-center">
-                                  <p class="mb-0 me-2">Dawn Merhca</p>
-                                  <span class="badge bg-light text-body"
-                                    >Owner</span
-                                  >
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                          <div class="col-md-4 text-md-end">
-                            <div class="mb-3 d-inline-flex align-items-center">
-                              <span class="badge badge-danger-light me-1"
-                                >Proposal</span
-                              >
-                              <span class="badge bg-pending priority-badge me-1"
-                                >Draft</span
-                              >
-                              <div class="dropdown">
-                                <a
-                                  href="#"
-                                  class="action-icon btn btn-icon btn-sm btn-outline-light shadow"
-                                  data-bs-toggle="dropdown"
-                                  aria-expanded="false"
-                                  ><i class="ti ti-dots-vertical"></i></a
-                                >
-                                <div class="dropdown-menu dropdown-menu-right">
-                                  <a
-                                    class="dropdown-item"
-                                    href="javascript:void(0);"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#delete_file"
-                                  >
-                                    <i class="ti ti-trash me-1"></i>Delete
-                                  </a>
-                                  <a
-                                    class="dropdown-item"
-                                    href="javascript:void(0);"
-                                  >
-                                    <i class="ti ti-download me-1"></i>Download
-                                  </a>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <!-- /Files -->
+              <!-- /Chats -->
             {/if}
 
             {#if activeTab === "Email"}
@@ -1400,7 +1173,7 @@
                     <h5 class="mb-1">Email</h5>
                     <div class="d-inline-flex align-items-center">
                       <a
-                        href="javascript:void(0);"
+                        href="#tag"
                         class="link-primary fw-medium"
                         data-bs-toggle="tooltip"
                         data-bs-placement="left"
@@ -1426,7 +1199,7 @@
                           <div class="col-md-4 text-md-end">
                             <div class="mb-3">
                               <a
-                                href="#"
+                                href="#create_email"
                                 class="btn btn-primary"
                                 data-bs-toggle="modal"
                                 data-bs-target="#create_email"
@@ -2012,3 +1785,233 @@
   </div>
 </div>
 <!-- /Add Canvas -->
+
+<!-- Add Attachment -->
+<div class="modal fade" id="new_file" role="dialog">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Add New Attachment</h5>
+        <button
+          type="button"
+          class="btn-close custom-btn-close border p-1 me-0 text-dark"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        >
+        </button>
+      </div>
+      <form
+        on:submit={addAttachment}
+        class="needs-validation space-y-4"
+        novalidate
+      >
+        <div class="modal-body">
+          <div class="grid grid-cols-1 gap-4">
+            <div>
+              <label class="form-label" for="title">
+                Title <span class="text-danger">*</span>
+              </label>
+              <input
+                type="text"
+                name="title"
+                class="form-control"
+                class:is-invalid={formErrors.title}
+                bind:value={aTitle}
+                required
+                id="title"
+                placeholder="Title"
+              />
+              {#if formErrors.title}
+                <ul class="text-danger mt-1 text-xs capitalize">
+                  <li>{formErrors.title[0]}</li>
+                </ul>
+              {/if}
+            </div>
+            <div>
+              <label class="form-label" for="link"> Link </label>
+              <input
+                type="text"
+                name="link"
+                class="form-control"
+                class:is-invalid={formErrors.link}
+                bind:value={link}
+                id="link"
+                placeholder="Link"
+              />
+              {#if formErrors.link}
+                <ul class="text-danger mt-1 text-xs capitalize">
+                  <li>{formErrors.link[0]}</li>
+                </ul>
+              {/if}
+            </div>
+            <div>
+              <label class="form-label" for="attachment">
+                Attachment <span class="text-danger">*</span>
+              </label>
+              <div
+                class="file-upload drag-file w-100 d-flex bg-light border shadow align-items-center justify-content-center flex-column"
+              >
+                <span class="upload-img d-block mb-1">
+                  <i class="ti ti-folder-open text-primary fs-16"></i>
+                </span>
+                <p class="mb-0 fs-14 text-dark">
+                  Drop your files here or <a
+                    href="#browse"
+                    class="text-decoration-underline text-primary">browse</a
+                  >
+                </p>
+                <input type="file" accept="video/image" />
+                <p class="fs-13 mb-0">Maximum size : 50 MB</p>
+              </div>
+              {#if formErrors.attachment}
+                <ul class="text-danger mt-1 text-xs capitalize">
+                  <li>{formErrors.attachment[0]}</li>
+                </ul>
+              {/if}
+            </div>
+          </div>
+          <div class="modal-footer">
+            <a class="btn btn-light" href="#cancel" data-bs-dismiss="modal"
+              >Cancel</a
+            >
+            <button class="btn btn-primary" type="submit">Confirm</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<!-- /Add Attachment -->
+
+<!-- Create Chat -->
+<div class="modal fade" id="create_call" role="dialog">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Create Chat</h5>
+        <button
+          type="button"
+          class="btn-close custom-btn-close border p-1 me-0 text-dark"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        >
+        </button>
+      </div>
+      <form on:submit={addChat} class="needs-validation space-y-4" novalidate>
+        <div class="modal-body">
+          <div class="grid grid-cols-1 gap-4">
+            <div>
+              <label class="form-label" for="type">
+                Type <span class="text-danger">*</span>
+              </label>
+              <input
+                type="text"
+                name="type"
+                class="form-control"
+                class:is-invalid={formErrors.type}
+                bind:value={type}
+                required
+                id="type"
+                placeholder="Type"
+              />
+              {#if formErrors.type}
+                <ul class="text-danger mt-1 text-xs capitalize">
+                  <li>{formErrors.type[0]}</li>
+                </ul>
+              {/if}
+            </div>
+            <div>
+              <label class="form-label" for="message">
+                Message <span class="text-danger">*</span>
+              </label>
+              <textarea
+                id="message"
+                name="message"
+                class="form-control"
+                rows="4"
+                bind:value={message}
+                class:is-invalid={formErrors.message}
+                required
+              ></textarea>
+              {#if formErrors.message}
+                <ul class="text-danger mt-1 text-xs capitalize">
+                  <li>{formErrors.message[0]}</li>
+                </ul>
+              {/if}
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary" type="submit">Create New</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<!-- /Create Chat -->
+
+<!-- Add Assigned Users -->
+<div class="modal custom-modal fade" id="add_contact" role="dialog">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Add Assigned Users</h5>
+        <button
+          class="btn-close custom-btn-close border p-1 me-0 text-dark"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        >
+          <i class="ti ti-x"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form
+          on:submit={addAssignedUser}
+          class="needs-validation space-y-4"
+          novalidate
+        >
+          <div class="access-wrap">
+            {#if users.length}
+              <ul>
+                {#each users as user}
+                  <li class="select-people-checkbox">
+                    <label class="checkboxs d-flex align-items-center mb-3">
+                      <input
+                        type="checkbox"
+                        class="form-check-input me-2"
+                        bind:group={seletedUsers}
+                        value={user.id}
+                      />
+                      <span class="checkmarks"></span>
+                      <span class="people-profile">
+                        <img
+                          src="/assets/img/profiles/avatar-19.jpg"
+                          alt="img"
+                          class="avatar avatar-sm rounded-circle"
+                        />
+                        <a href="#user">{user?.name}</a>
+                      </span>
+                    </label>
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+          </div>
+          <div class="modal-btn text-end">
+            <button
+              type="button"
+              href="#"
+              class="btn btn-light"
+              data-bs-dismiss="modal"
+            >
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-primary">Confirm</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- /Add Assigned Users -->

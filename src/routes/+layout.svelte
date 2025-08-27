@@ -33,6 +33,11 @@
     } else {
     }
   });
+  import { setupBootstrapHandlers } from "$lib/utils/js/bootstrapHandlers.js";
+
+  onMount(() => {
+    setupBootstrapHandlers();
+  });
 </script>
 
 <main class="main-wrapper min-h-screen bg-gray-50">

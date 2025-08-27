@@ -1,63 +1,62 @@
+import axios, { AxiosRequestConfig } from "axios";
 import { get } from "svelte/store";
 import { token } from "../stores/auth";
+
 const BASE_URL = "http://localhost:3000";
 
-export async function apiFetch(endpoint: string, options: RequestInit = {}) {
-  const res = await fetch(`${BASE_URL}/${endpoint}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-    ...options,
-  });
+const axiosInstance = axios.create({
+  baseURL: BASE_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
 
-  if (!res.ok) {
-    let errorData;
-    try {
-      errorData = await res.json(); // Try to parse JSON error response
-    } catch {
-      errorData = { message: "Unknown error occurred" };
-    }
-
+// Generic API fetch (no auth)
+export async function apiFetch(
+  endpoint: string,
+  options: AxiosRequestConfig = {}
+) {
+  try {
+    const response = await axiosInstance.request({
+      url: endpoint,
+      ...options,
+    });
+    return response.data;
+  } catch (err: any) {
+    const errorData = err.response?.data || {
+      message: "Unknown error occurred",
+    };
     const error = new Error(errorData.message || "API request failed");
-    (error as any).status = res.status;
+    (error as any).status = err.response?.status || 500;
     (error as any).data = errorData;
     throw error;
   }
-
-  return res.json();
 }
 
+// Authenticated API fetch
 export async function authApiFetch(
   endpoint: string,
-  options: RequestInit = {}
+  options: AxiosRequestConfig = {}
 ) {
-  const authToken = get(token);
+  const authToken = localStorage.getItem("access_token");
 
-  const res = await fetch(`${BASE_URL}/${endpoint}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-      ...(options.headers || {}),
-    },
-  });
-  console.log("res : ", res);
-
-  if (!res.ok) {
-    let errorData;
-    try {
-      errorData = await res.json(); // Try to parse JSON error response
-    } catch {
-      errorData = { message: "Unknown error occurred" };
-    }
-
+  try {
+    const response = await axiosInstance.request({
+      url: endpoint,
+      headers: {
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+        ...(options.headers || {}),
+      },
+      ...options,
+    });
+    return response.data;
+  } catch (err: any) {
+    const errorData = err.response?.data || {
+      message: "Unknown error occurred",
+    };
     const error = new Error(errorData.message || "API request failed");
-    (error as any).status = res.status;
+    (error as any).status = err.response?.status || 500;
     (error as any).data = errorData;
     throw error;
   }
-  let r_json = res.json();
-  console.log("res : ", r_json);
-  return r_json;
 }

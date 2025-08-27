@@ -181,13 +181,13 @@
               <a
                 class="dropdown-toggle btn btn-outline-light shadow"
                 data-bs-toggle="dropdown"
-                href="#"
+                href="#dropdown"
               >
                 Last 30 days
               </a>
               <div class="dropdown-menu dropdown-menu-end">
-                <a href="#" class="dropdown-item"> Last 15 days </a>
-                <a href="#" class="dropdown-item"> Last 30 days </a>
+                <a href="#dropdownItem" class="dropdown-item"> Last 15 days </a>
+                <a href="#dropdownItem" class="dropdown-item"> Last 30 days </a>
               </div>
             </div>
           </div>
@@ -305,14 +305,14 @@
   <footer class="footer flex justify-between text-md-start text-center">
     <p class="mb-md-0 mb-1">
       Copyright © 2025
-      <a href="#" class="link-primary text-decoration-underline">CRMS</a>
+      <a href="#CRMS" class="link-primary text-decoration-underline">CRMS</a>
     </p>
     <div
       class="flex items-center gap-2 footer-links justify-content-center justify-content-md-end"
     >
-      <a href="#">About</a>
-      <a href="#">Terms</a>
-      <a href="#">Contact Us</a>
+      <a href="#About">About</a>
+      <a href="#Terms">Terms</a>
+      <a href="#ContactUs">Contact Us</a>
     </div>
   </footer>
   <!-- End Footer -->

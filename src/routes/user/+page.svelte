@@ -4,7 +4,9 @@
   import { goto } from "$app/navigation";
   import Header from "$lib/components/Header.svelte";
   import Sidebar from "$lib/components/Sidebar.svelte";
-  import { authApiFetch } from "../../lib/api/client";
+  import { authApiFetch } from "$lib/api/client";
+  import { API_ROUTES } from "$lib/constants/apiRoutes";
+  import Swal from "sweetalert2";
 
   let users = [];
   let currentPage = 1;
@@ -52,9 +54,12 @@
         search: searchTerm || "",
       });
 
-      const data = await authApiFetch(`users?${query.toString()}`, {
-        method: "GET",
-      });
+      const data = await authApiFetch(
+        `${API_ROUTES.USER}?${query.toString()}`,
+        {
+          method: "GET",
+        }
+      );
 
       users = data.data;
     } catch (err) {
@@ -67,16 +72,24 @@
   };
 
   async function deleteRecord(id) {
-    console.log(id);
-
-    if (!confirm("Are you sure you want to delete this user?")) return;
-
-    try {
-      await authApiFetch(`user/${id}`, { method: "DELETE" });
-      users = users.filter((user) => user.id !== id); // Remove from local list
-    } catch (err) {
-      console.error("Failed to delete user:", err);
-    }
+    Swal.fire({
+      title: "Delete Confirmation",
+      text: "Are you sure you want to delete this record.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, delete it!",
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          await authApiFetch(`${API_ROUTES.USER}/${id}`, { method: "DELETE" });
+          users = users.filter((user) => user.id !== id); // Remove from local list
+          Swal.fire("Deleted!", data.message, "success");
+          goto("/order");
+        } catch (err) {
+          console.error("Failed to delete user:", err);
+        }
+      }
+    });
   }
 
   onMount(fetchUsers);

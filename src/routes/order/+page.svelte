@@ -1,15 +1,15 @@
 <script>
   import { onMount } from "svelte";
-  import { goto } from "$app/navigation";
   import Header from "$lib/components/Header.svelte";
   import Sidebar from "$lib/components/Sidebar.svelte";
   import jQuery from "jquery";
   import { authApiFetch } from "$lib/api/client";
   import { errorHandle } from "$lib/utils/errorHandle";
+  import { API_ROUTES } from "$lib/constants/apiRoutes";
+  import Swal from "sweetalert2";
 
   let orders = [];
   let searchTerm = "";
-  let updateMount = true;
 
   // Form state
   let title = "";
@@ -93,14 +93,14 @@
     }
 
     try {
-      const data = await authApiFetch("orders", {
+      const data = await authApiFetch(API_ROUTES.ORDER, {
         method: "POST",
-        body: JSON.stringify(newOrder),
+        data: JSON.stringify(newOrder),
       });
       console.log("data  : ", data);
 
       orders = [data.data, ...orders];
-      alert(data.message);
+      Swal.fire("Success!", data.message, "success");
       closeOffcanvas();
     } catch (error) {
       loading = false;
@@ -121,25 +121,22 @@
 
   onMount(() => {
     const $ = jQuery;
-    const overlay = $('<div class="offcanvas-backdrop fade"></div>');
 
     // Open offcanvas
     $(document).on("click", "a[data-bs-target='#offcanvas_add']", function () {
+      // Remove any existing backdrop before adding a new one
+      $(".offcanvas-backdrop").remove();
+
+      // Create and insert a new backdrop
+      const overlay = $('<div class="offcanvas-backdrop fade show"></div>');
       overlay.insertBefore(".main-wrapper");
+
       $("#offcanvas_add").addClass("show");
-      $(".offcanvas-backdrop").addClass("fade show");
       $("body").css({ overflow: "hidden", paddingRight: "15px" });
     });
 
-    // Close offcanvas on clicking backdrop
-    $(document).on("click", ".offcanvas-backdrop", function () {
-      closeOffcanvas();
-    });
-
-    // Close offcanvas on clicking any element with data-bs-dismiss="offcanvas"
-    $(document).on("click", '[data-bs-dismiss="offcanvas"]', function () {
-      closeOffcanvas();
-    });
+    $(document).on("click", ".offcanvas-backdrop", closeOffcanvas);
+    $(document).on("click", '[data-bs-dismiss="offcanvas"]', closeOffcanvas);
 
     // Filter
     document.addEventListener("DOMContentLoaded", () => {
@@ -159,9 +156,12 @@
         search: searchTerm || "",
       });
 
-      const data = await authApiFetch(`orders?${query.toString()}`, {
-        method: "GET",
-      });
+      const data = await authApiFetch(
+        `${API_ROUTES.ORDER}?${query.toString()}`,
+        {
+          method: "GET",
+        }
+      );
 
       orders = data;
       console.log("orders : ", data);
@@ -201,9 +201,7 @@
     <!-- Page Header -->
     <div class="flex items-center justify-between gap-2 mb-4 flex-wrap">
       <div>
-        <h4 class="mb-1">
-          Orders
-        </h4>
+        <h4 class="mb-1">Orders</h4>
         <nav aria-label="breadcrumb">
           <ol class="breadcrumb mb-0 p-0">
             <li class="breadcrumb-item"><a href="/">Home</a></li>
@@ -214,7 +212,7 @@
       <div class="gap-2 flex items-center flex-wrap">
         <div class="dropdown">
           <a
-            href="javascript:void(0);"
+            href="#Export"
             class="dropdown-toggle btn btn-outline-light px-2 shadow"
             data-bs-toggle="dropdown"
           >
@@ -223,12 +221,12 @@
           <div class="dropdown-menu dropdown-menu-end">
             <ul>
               <li>
-                <a href="javascript:void(0);" class="dropdown-item">
+                <a href="#pdf" class="dropdown-item">
                   <i class="ti ti-file-type-pdf me-1"></i>Export as PDF
                 </a>
               </li>
               <li>
-                <a href="javascript:void(0);" class="dropdown-item">
+                <a href="#Excel" class="dropdown-item">
                   <i class="ti ti-file-type-xls me-1"></i>Export as Excel
                 </a>
               </li>
@@ -236,7 +234,7 @@
           </div>
         </div>
         <a
-          href="javascript:void(0);"
+          href="#Refresh"
           class="btn btn-icon btn-outline-light shadow"
           data-bs-toggle="tooltip"
           data-bs-placement="top"
@@ -246,7 +244,7 @@
           <i class="ti ti-refresh"></i>
         </a>
         <a
-          href="javascript:void(0);"
+          href="#Collapse"
           class="btn btn-icon btn-outline-light shadow"
           data-bs-toggle="tooltip"
           data-bs-placement="top"
@@ -278,7 +276,7 @@
       </div>
       <div class="flex items-center gap-2 flex-wrap">
         <a
-          href="javascript:void(0);"
+          href="#offcanvas_add"
           class="btn btn-primary"
           data-bs-toggle="offcanvas"
           data-bs-target="#offcanvas_add"
@@ -291,6 +289,7 @@
 
     <!-- Orders Kanban -->
     <div class="flex overflow-x-auto items-start mb-0 gap-3">
+      <!-- New Lead -->
       <div class="kanban-list-items p-2 rounded border">
         <div class="card mb-0 border-0 shadow">
           <div class="card-body p-2">
@@ -298,135 +297,264 @@
               <div>
                 <h6 class="flex items-center mb-1">
                   <i class="ti ti-circle-filled fs-10 text-info me-1"></i>
-                  Qualify To Buy
+                  New Lead
                 </h6>
-                <span>{orders?.length} Orders - $15,44,540</span>
-              </div>
-              <div class="flex items-center">
-                <div class="dropdown table-action ms-2">
-                  <a
-                    href="#"
-                    class="action-icon btn btn-xs shadow btn-icon btn-outline-light"
-                    data-bs-toggle="dropdown"
-                    aria-expanded="false"
-                  >
-                    <i class="ti ti-dots-vertical"></i>
-                  </a>
-                  <div class="dropdown-menu dropdown-menu-right">
-                    <a
-                      class="dropdown-item"
-                      href="#"
-                      data-bs-toggle="offcanvas"
-                      data-bs-target="#offcanvas_edit"
-                      ><i class="fa-solid fa-pencil text-blue"></i> Edit</a
-                    >
-                    <a
-                      class="dropdown-item"
-                      href="#"
-                      data-bs-toggle="modal"
-                      data-bs-target="#delete_deal"
-                      ><i class="fa-regular fa-trash-can text-danger"></i>
-                      Delete</a
-                    >
-                  </div>
-                </div>
+                <span>{orders?.length} Orders - ₹ 1,00,000.00</span>
               </div>
             </div>
           </div>
         </div>
-        <div class="kanban-drag-wrap">
-          {#each orders as order}
-            <div>
-              <div class="card kanban-card border mb-0 mt-3 shadow">
-                <div class="card-body">
-                  <div class="d-block">
-                    <div class="flex items-center mb-3">
-                      <a
-                        href={`/order/${order?.id}`}
-                        class="avatar bg-soft-success text-success rounded-circle flex-shrink-0 me-2"
-                      >
-                        <span class="avatar-title text-success"
-                          >{getAvatarText(order?.title)}</span
+        {#if orders.length}
+          <div class="kanban-drag-wrap">
+            {#each orders as order}
+              <div>
+                <div class="card kanban-card border mb-0 mt-3 shadow">
+                  <div class="card-body">
+                    <div class="d-block">
+                      <div class="flex items-center mb-3">
+                        <a
+                          href={`/order/${order?.id}`}
+                          class="avatar bg-soft-success text-success rounded-circle flex-shrink-0 me-2"
                         >
-                      </a>
-                      <h6 class="fw-medium fs-14 mb-0">
-                        <a href={`/order/${order?.id}`} class="capitalize"
-                          >{order?.title}</a
+                          <span class="avatar-title text-success"
+                            >{getAvatarText(order?.title)}</span
+                          >
+                        </a>
+                        <h6 class="fw-medium fs-14 mb-0">
+                          <a href={`/order/${order?.id}`} class="capitalize"
+                            >{order?.title}</a
+                          >
+                        </h6>
+                      </div>
+                    </div>
+                    <div class="flex flex-column">
+                      <p class="text-default d-inline-flex items-center mb-2">
+                        <i class="ti ti-report-money text-dark me-1"></i>
+                        {new Intl.NumberFormat("en-IN", {
+                          style: "currency",
+                          currency: "INR",
+                        })
+                          .format(order?.price || 0)
+                          .replace("₹", "₹ ")}
+                      </p>
+                      <p class="text-default d-inline-flex items-center mb-2">
+                        <i class="ti ti-mail text-dark me-1"></i>
+                        <a href={`mailto:${order?.orderClient?.email}`}
+                          >{order?.orderClient?.email ?? "-"}</a
                         >
-                      </h6>
+                      </p>
+                      <p class="text-default d-inline-flex items-center mb-2">
+                        <i class="ti ti-phone text-dark me-1"></i>
+                        {order?.orderClient?.mobile ?? "-"}
+                      </p>
+                      <p class="text-default d-inline-flex items-center">
+                        <i class="ti ti-map-pin-pin text-dark me-1"></i>
+                        {order?.orderClient?.address ?? "-"}
+                      </p>
                     </div>
-                  </div>
-                  <div class="flex flex-column">
-                    <p class="text-default d-inline-flex items-center mb-2">
-                      <i class="ti ti-report-money text-dark me-1"></i>
-                      {new Intl.NumberFormat("en-IN", {
-                        style: "currency",
-                        currency: "INR",
-                      })
-                        .format(order?.price || 0)
-                        .replace("₹", "₹ ")}
-                    </p>
-                    <p class="text-default d-inline-flex items-center mb-2">
-                      <i class="ti ti-mail text-dark me-1"></i>
-                      <a href={`mailto:${order?.orderClient?.email}`}
-                        >{order?.orderClient?.email ?? "-"}</a
-                      >
-                    </p>
-                    <p class="text-default d-inline-flex items-center mb-2">
-                      <i class="ti ti-phone text-dark me-1"></i>
-                      {order?.orderClient?.mobile ?? "-"}
-                    </p>
-                    <p class="text-default d-inline-flex items-center">
-                      <i class="ti ti-map-pin-pin text-dark me-1"></i>
-                      {order?.orderClient?.address ?? "-"}
-                    </p>
-                  </div>
-                  <div class="flex justify-between items-center">
-                    <div class="flex items-center">
-                      <a
-                        href="javascript:void(0);"
-                        class="avatar avatar-xs flex-shrink-0 me-2"
-                      >
-                        <img
-                          src="/assets/img/profiles/avatar-19.jpg"
-                          alt="Img"
-                          class="rounded-circle"
-                        />
-                      </a>
-                      <a href="javascript:void(0);" class="text-default">
-                        {order?.orderClient?.name}
-                      </a>
+                    <div class="flex justify-between items-center">
+                      <div class="flex items-center">
+                        <a
+                          href="#user"
+                          class="avatar avatar-xs flex-shrink-0 me-2"
+                        >
+                          <img
+                            src="/assets/img/profiles/avatar-19.jpg"
+                            alt="Img"
+                            class="rounded-circle"
+                          />
+                        </a>
+                        <a href="#user" class="text-default">
+                          {order?.orderClient?.name}
+                        </a>
+                      </div>
+                      <span class="badge bg-success">{order?.status}</span>
                     </div>
-                    <span class="badge bg-success">{order?.status}</span>
-                  </div>
-                  <div
-                    class="flex items-center justify-between border-top pt-3 mt-3"
-                  >
-                    <span>
-                      <i class="ti ti-calendar-due"></i>
-                      {order?.orderDate &&
-                        new Date(order.orderDate).toLocaleDateString("en-GB", {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
-                        })}
-                    </span>
-                    <div class="icons-social flex items-center gap-1">
-                      <a href="#" class="flex items-center justify-center me-1">
-                        <i class="ti ti-phone-check"></i>
-                      </a>
-                      <a href="#" class="flex items-center justify-center me-1">
-                        <i class="ti ti-message-circle-2"></i>
-                      </a>
-                      <a href="#" class="flex items-center justify-center">
-                        <i class="ti ti-color-swatch"></i>
-                      </a>
+                    <div
+                      class="flex items-center justify-between border-top pt-3 mt-3"
+                    >
+                      <span>
+                        <i class="ti ti-calendar-due"></i>
+                        {order?.orderDate &&
+                          new Date(order.orderDate).toLocaleDateString(
+                            "en-GB",
+                            {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            }
+                          )}
+                      </span>
+                      <div class="icons-social flex items-center gap-1">
+                        <a
+                          href="#phone"
+                          class="flex items-center justify-center me-1"
+                        >
+                          <i class="ti ti-phone-check"></i>
+                        </a>
+                        <a
+                          href="#message"
+                          class="flex items-center justify-center me-1"
+                        >
+                          <i class="ti ti-message-circle-2"></i>
+                        </a>
+                        <a
+                          href="#label"
+                          class="flex items-center justify-center"
+                        >
+                          <i class="ti ti-color-swatch"></i>
+                        </a>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
+            {/each}
+          </div>
+        {/if}
+      </div>
+      <!-- Contacted -->
+      <div class="kanban-list-items p-2 rounded border">
+        <div class="card mb-0 border-0 shadow">
+          <div class="card-body p-2">
+            <div class="flex justify-between items-center">
+              <div>
+                <h6 class="flex items-center mb-1">
+                  <i class="ti ti-circle-filled fs-10 text-info me-1"></i>
+                  Contacted
+                </h6>
+                <span>0 Orders - ₹ 0.00</span>
+              </div>
             </div>
-          {/each}
+          </div>
+        </div>
+      </div>
+      <!-- Follow-Up -->
+      <div class="kanban-list-items p-2 rounded border">
+        <div class="card mb-0 border-0 shadow">
+          <div class="card-body p-2">
+            <div class="flex justify-between items-center">
+              <div>
+                <h6 class="flex items-center mb-1">
+                  <i class="ti ti-circle-filled fs-10 text-info me-1"></i>
+                  Follow-Up
+                </h6>
+                <span>0 Orders - ₹ 0.00</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Qualified -->
+      <div class="kanban-list-items p-2 rounded border">
+        <div class="card mb-0 border-0 shadow">
+          <div class="card-body p-2">
+            <div class="flex justify-between items-center">
+              <div>
+                <h6 class="flex items-center mb-1">
+                  <i class="ti ti-circle-filled fs-10 text-info me-1"></i>
+                  Qualified
+                </h6>
+                <span>0 Orders - ₹ 0.00</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Unqualified -->
+      <div class="kanban-list-items p-2 rounded border">
+        <div class="card mb-0 border-0 shadow">
+          <div class="card-body p-2">
+            <div class="flex justify-between items-center">
+              <div>
+                <h6 class="flex items-center mb-1">
+                  <i class="ti ti-circle-filled fs-10 text-info me-1"></i>
+                  Unqualified
+                </h6>
+                <span>0 Orders - ₹ 0.00</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Needs Assessment -->
+      <div class="kanban-list-items p-2 rounded border">
+        <div class="card mb-0 border-0 shadow">
+          <div class="card-body p-2">
+            <div class="flex justify-between items-center">
+              <div>
+                <h6 class="flex items-center mb-1">
+                  <i class="ti ti-circle-filled fs-10 text-info me-1"></i>
+                  Needs Assessment
+                </h6>
+                <span>0 Orders - ₹ 0.00</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Quotation Sent -->
+      <div class="kanban-list-items p-2 rounded border">
+        <div class="card mb-0 border-0 shadow">
+          <div class="card-body p-2">
+            <div class="flex justify-between items-center">
+              <div>
+                <h6 class="flex items-center mb-1">
+                  <i class="ti ti-circle-filled fs-10 text-info me-1"></i>
+                  Quotation Sent
+                </h6>
+                <span>0 Orders - ₹ 0.00</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Negotiation in Progress -->
+      <div class="kanban-list-items p-2 rounded border">
+        <div class="card mb-0 border-0 shadow">
+          <div class="card-body p-2">
+            <div class="flex justify-between items-center">
+              <div>
+                <h6 class="flex items-center mb-1">
+                  <i class="ti ti-circle-filled fs-10 text-info me-1"></i>
+                  Negotiation in Progress
+                </h6>
+                <span>0 Orders - ₹ 0.00</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Deal Won -->
+      <div class="kanban-list-items p-2 rounded border">
+        <div class="card mb-0 border-0 shadow">
+          <div class="card-body p-2">
+            <div class="flex justify-between items-center">
+              <div>
+                <h6 class="flex items-center mb-1">
+                  <i class="ti ti-circle-filled fs-10 text-info me-1"></i>
+                  Deal Won
+                </h6>
+                <span>0 Orders - ₹ 0.00</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Deal Lost -->
+      <div class="kanban-list-items p-2 rounded border">
+        <div class="card mb-0 border-0 shadow">
+          <div class="card-body p-2">
+            <div class="flex justify-between items-center">
+              <div>
+                <h6 class="flex items-center mb-1">
+                  <i class="ti ti-circle-filled fs-10 text-info me-1"></i>
+                  Deal Lost
+                </h6>
+                <span>0 Orders - ₹ 0.00</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

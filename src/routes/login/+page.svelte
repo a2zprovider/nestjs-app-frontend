@@ -6,6 +6,8 @@
   import { goto } from "$app/navigation";
   import { apiFetch } from "$lib/api/client";
   import { errorHandle } from "$lib/utils/errorHandle";
+  import { API_ROUTES } from "$lib/constants/apiRoutes";
+  import Swal from "sweetalert2";
 
   let email = "";
   let password = "";
@@ -31,11 +33,11 @@
     }
 
     try {
-      const data = await apiFetch("auth/login", {
+      const data = await apiFetch(API_ROUTES.LOGIN, {
         method: "POST",
-        body: JSON.stringify({ email, password }),
+        data: JSON.stringify({ email, password }),
       });
-
+      Swal.fire("Success!", 'Sign in successfully.', "success");
       // Store token and user info
       localStorage.setItem("access_token", data.access_token);
       localStorage.setItem("user", JSON.stringify(data.user));
@@ -116,7 +118,9 @@
     >
 
     <p class="text-center text-sm text-gray-500 mt-4">
-      <a href="#" class="text-red-500 hover:text-red-600">Forgot Password?</a>
+      <a href="#ForgotPassword" class="text-red-500 hover:text-red-600"
+        >Forgot Password?</a
+      >
     </p>
 
     <!-- <p class="text-center text-sm text-gray-500 mt-2">

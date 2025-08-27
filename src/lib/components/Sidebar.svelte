@@ -1,46 +1,47 @@
 <script>
   import { onMount } from "svelte";
   import { page } from "$app/stores";
-  import { goto } from "$app/navigation";
-  import { clearUser, setUser } from "../../stores/userStore";
-  import { checkAuth, logoutUser } from "$lib/utils/auth";
   import jQuery from "jquery";
 
   let openMenu = null;
+
   $: currentPath = $page.url.pathname;
+
+  $: if (openMenu !== null) {
+    openMenu = null;
+  }
 
   const toggleMenu = (menuName) => {
     openMenu = openMenu === menuName ? null : menuName;
   };
 
-  const logout = () => {
-    clearUser();
-    logoutUser();
-    goto("/login");
-  };
-
   onMount(() => {
     const $ = jQuery;
     const wrapper = $(".main-wrapper");
-    const overlay = $('<div class="sidebar-overlay"></div>');
 
-    overlay.insertBefore(".main-wrapper");
+    // ✅ Prevent duplicate overlays
+    if ($(".sidebar-overlay").length === 0) {
+      const overlay = $('<div class="sidebar-overlay"></div>');
+      overlay.insertBefore(".main-wrapper");
+    }
 
-    // Toggle Mobile Menu
-    $(document).on("click", "#mobile_btn", function (e) {
+    const overlay = $(".sidebar-overlay");
+
+    // Event handlers
+    const toggleMenuHandler = function (e) {
       e.preventDefault();
       wrapper.toggleClass("slide-nav");
       overlay.toggleClass("opened");
       $("html").toggleClass("menu-opened");
-    });
+    };
 
-    // Close sidebar on close
-    $(document).on("click", ".sidebar-close, .sidebar-overlay", function () {
+    const closeMenuHandler = function () {
       wrapper.removeClass("slide-nav");
       overlay.removeClass("opened");
       $("html").removeClass("menu-opened");
-    });
-    $(".sidebar-menu a").on("click", function (e) {
+    };
+
+    const submenuClickHandler = function (e) {
       const link = $(this);
       const submenu = link.next("ul");
 
@@ -58,16 +59,9 @@
           submenu.slideUp(350);
         }
       }
-    });
+    };
 
-    $(".sidebar-menu ul li.submenu a.active")
-      .parents("li.submenu")
-      .children("a")
-      .addClass("active subdrop")
-      .next("ul")
-      .show();
-
-    $(document).on("mouseover", function (e) {
+    const mouseOverHandler = function (e) {
       if (
         $("body").hasClass("mini-sidebar") &&
         $("#toggle_btn").is(":visible")
@@ -85,13 +79,44 @@
         }
         return false;
       }
-    });
+    };
 
+    // Bind events
+    $(document).on("click", "#mobile_btn", toggleMenuHandler);
+    $(document).on(
+      "click",
+      ".sidebar-close, .sidebar-overlay",
+      closeMenuHandler
+    );
+    $(".sidebar-menu a").on("click", submenuClickHandler);
+    $(document).on("mouseover", mouseOverHandler);
+
+    // Activate submenu on load
+    $(".sidebar-menu ul li.submenu a.active")
+      .parents("li.submenu")
+      .children("a")
+      .addClass("active subdrop")
+      .next("ul")
+      .show();
+
+    // Sticky sidebar (optional)
     if ($(window).width() > 767 && $(".theiaStickySidebar").length > 0) {
       $(".theiaStickySidebar").theiaStickySidebar({
         additionalMarginTop: 30,
       });
     }
+
+    // ✅ Clean up on destroy
+    return () => {
+      $(document).off("click", "#mobile_btn", toggleMenuHandler);
+      $(document).off(
+        "click",
+        ".sidebar-close, .sidebar-overlay",
+        closeMenuHandler
+      );
+      $(".sidebar-menu a").off("click", submenuClickHandler);
+      $(document).off("mouseover", mouseOverHandler);
+    };
   });
 </script>
 
@@ -148,7 +173,7 @@
                     <ul>
                       <li class="submenu">
                         <a
-                          href="#"
+                          href="#dashboard"
                           on:click={() => toggleMenu("dashboard")}
                           class:active={openMenu === "dashboard"}
                           class:subdrop={openMenu === "dashboard"}
@@ -173,10 +198,7 @@
                   <li>
                     <ul>
                       <li>
-                        <a
-                          href="/user"
-                          class:active={currentPath === "/user"}
-                        >
+                        <a href="/user" class:active={currentPath === "/user"}>
                           <i class="ti ti-user-up"></i><span>Users</span>
                         </a>
                       </li>
@@ -185,7 +207,7 @@
                           href="/order"
                           class:active={currentPath === "/order"}
                         >
-                          <i class="ti ti-user-up"></i><span>Orders</span>
+                          <i class="ti ti-medal"></i><span>Orders</span>
                         </a>
                       </li>
                     </ul>
