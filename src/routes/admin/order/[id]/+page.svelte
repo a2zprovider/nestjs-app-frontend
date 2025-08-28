@@ -1,8 +1,6 @@
 <script>
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
-  import Header from "$lib/components/Header.svelte";
-  import Sidebar from "$lib/components/Sidebar.svelte";
   import jQuery from "jquery";
   import { page } from "$app/stores";
   import { authApiFetch } from "$lib/api/client";
@@ -257,7 +255,7 @@
             method: "DELETE",
           });
           Swal.fire("Deleted!", data.message, "success");
-          goto("/order");
+          goto("/admin/order");
         }
       });
     } catch (error) {
@@ -373,40 +371,45 @@
     newAssignedUsers = seletedUsers
       .map((id) => users.find((u) => u.id === id))
       .filter(Boolean);
-    updateOrder.assignedUsers = [...newAssignedUsers, ...order.assignedUsers];
+    const existingAdminUsers = order.assignedUsers.filter(
+      (user) => user.role === "admin"
+    );
+    updateOrder.assignedUsers = [...newAssignedUsers, ...existingAdminUsers];
 
-    try {
-      const data = await authApiFetch(API_ROUTES.ORDER + "/" + order.id, {
-        method: "PUT",
-        data: JSON.stringify(updateOrder),
-      });
-      console.log("data  : ", data);
-
-      order = data.data;
-      Swal.fire("Success!", data.message, "success");
-      closeModalMenual("#add_contact");
-    } catch (error) {
+    if (!updateOrder?.assignedUsers?.length) {
+      Swal.fire("Warning!", "Please select one user for assign.", "warning");
       loading = false;
-      const validationErrors = errorHandle(error);
-      console.log("validationErrors : ", validationErrors);
+    } else {
+      try {
+        const data = await authApiFetch(API_ROUTES.ORDER + "/" + order.id, {
+          method: "PUT",
+          data: JSON.stringify(updateOrder),
+        });
+        console.log("data  : ", data);
 
-      if (validationErrors && typeof validationErrors === "object") {
-        formErrors = validationErrors;
-      } else {
-        errorMessage = "An unexpected error occurred.";
+        order = data.data;
+        Swal.fire("Success!", data.message, "success");
+        closeModalMenual("#add_contact");
+      } catch (error) {
+        loading = false;
+        const validationErrors = errorHandle(error);
+        console.log("validationErrors : ", validationErrors);
+
+        if (validationErrors && typeof validationErrors === "object") {
+          formErrors = validationErrors;
+        } else {
+          errorMessage = "An unexpected error occurred.";
+        }
+      } finally {
+        console.log("formErrors : ", formErrors);
+
+        loading = false;
       }
-    } finally {
-      console.log("formErrors : ", formErrors);
-
-      loading = false;
     }
   }
 
   let activeTab = "Activity";
 </script>
-
-<Header />
-<Sidebar />
 
 <div class="page-wrapper">
   <!-- Start Content -->
@@ -419,8 +422,8 @@
         <h4 class="mb-1">Order</h4>
         <nav aria-label="breadcrumb">
           <ol class="breadcrumb mb-0 p-0">
-            <li class="breadcrumb-item"><a href="/">Home</a></li>
-            <li class="breadcrumb-item"><a href="/order">Orders</a></li>
+            <li class="breadcrumb-item"><a href="/admin">Home</a></li>
+            <li class="breadcrumb-item"><a href="/admin/order">Orders</a></li>
             <li class="breadcrumb-item active" aria-current="page">Order</li>
           </ol>
         </nav>
@@ -473,7 +476,7 @@
         <div class="col-md-12">
           <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
             <div>
-              <a href="/order">
+              <a href="/admin/order">
                 <i class="ti ti-arrow-narrow-left me-1"></i>Back to Orders
               </a>
             </div>
@@ -1874,7 +1877,9 @@
             <a class="btn btn-light" href="#cancel" data-bs-dismiss="modal"
               >Cancel</a
             >
-            <button class="btn btn-primary" type="submit">Confirm</button>
+            <button class="btn btn-primary" type="submit" disabled={loading}>
+              {loading ? "Confirming..." : "Confirm"}
+            </button>
           </div>
         </div>
       </form>
@@ -1942,8 +1947,12 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-          <button class="btn btn-primary" type="submit">Create New</button>
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal"
+            >Cancel</button
+          >
+          <button class="btn btn-primary" type="submit" disabled={loading}>
+            {loading ? "Creating..." : "Create New"}
+          </button>
         </div>
       </form>
     </div>
@@ -2007,7 +2016,9 @@
             >
               Cancel
             </button>
-            <button type="submit" class="btn btn-primary">Confirm</button>
+            <button class="btn btn-primary" type="submit" disabled={loading}>
+              {loading ? "Confirming..." : "Confirm"}
+            </button>
           </div>
         </form>
       </div>

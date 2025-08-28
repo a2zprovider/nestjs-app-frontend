@@ -2,8 +2,6 @@
   import { onMount } from "svelte";
   import DynamicDataTable from "$lib/components/DynamicDataTable.svelte";
   import { goto } from "$app/navigation";
-  import Header from "$lib/components/Header.svelte";
-  import Sidebar from "$lib/components/Sidebar.svelte";
   import { authApiFetch } from "$lib/api/client";
   import { API_ROUTES } from "$lib/constants/apiRoutes";
   import Swal from "sweetalert2";
@@ -68,7 +66,7 @@
   }
 
   const editRecord = async (id) => {
-    goto("/user/edit/" + id);
+    goto("/admin/user/edit/" + id);
   };
 
   async function deleteRecord(id) {
@@ -84,7 +82,7 @@
           await authApiFetch(`${API_ROUTES.USER}/${id}`, { method: "DELETE" });
           users = users.filter((user) => user.id !== id); // Remove from local list
           Swal.fire("Deleted!", data.message, "success");
-          goto("/order");
+          goto("/admin/user");
         } catch (err) {
           console.error("Failed to delete user:", err);
         }
@@ -97,9 +95,6 @@
   $: [searchTerm, currentPage, rowsPerPage], fetchUsers();
 </script>
 
-<Header />
-<Sidebar />
-
 <div class="page-wrapper">
   <!-- Start Content -->
   <div class="content pb-0">
@@ -108,7 +103,7 @@
       <h4 class="mb-1">Users</h4>
       <nav aria-label="breadcrumb">
         <ol class="breadcrumb mb-0 p-0">
-          <li class="breadcrumb-item"><a href="/">Home</a></li>
+          <li class="breadcrumb-item"><a href="/admin">Home</a></li>
           <li class="breadcrumb-item active" aria-current="page">Users</li>
         </ol>
       </nav>
@@ -123,13 +118,9 @@
         <div class="input-icon input-icon-start position-relative">
           <h5>Users List</h5>
         </div>
-        <a
-          href="/user/add"
-          class="btn btn-primary"
-          data-bs-toggle="offcanvas"
-          data-bs-target="#offcanvas_add"
-          ><i class="ti ti-square-rounded-plus-filled me-1"></i>Add User</a
-        >
+        <a href="/admin/user/add" class="btn btn-primary">
+          <i class="ti ti-square-rounded-plus-filled me-1"></i>Add User
+        </a>
       </div>
       <div class="card-body">
         <DynamicDataTable

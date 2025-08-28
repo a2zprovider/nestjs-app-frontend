@@ -1,14 +1,23 @@
 <script>
   import { onMount } from "svelte";
-  import Header from "$lib/components/Header.svelte";
-  import Sidebar from "$lib/components/Sidebar.svelte";
   import jQuery from "jquery";
   import { authApiFetch } from "$lib/api/client";
   import { errorHandle } from "$lib/utils/errorHandle";
   import { API_ROUTES } from "$lib/constants/apiRoutes";
   import Swal from "sweetalert2";
+  import OrderDragula from "$lib/components/OrderDragula.svelte";
+  import { writable } from "svelte/store";
 
-  let orders = [];
+  let orders = writable([]);
+
+  function updateOrderStatus(orderId, newStatus) {
+    let n_order = orders.find((order) => order.id == orderId);
+    if (n_order) {
+      n_order.status = newStatus;
+      orders = orders.map((order) => (order.id === orderId ? n_order : order));
+    }
+    statusUpdate(n_order);
+  }
   let searchTerm = "";
 
   // Form state
@@ -150,6 +159,19 @@
     });
   });
 
+  let accordingToStatusOrders = {
+    NewLead: [],
+    Contacted: [],
+    FollowUp: [],
+    Qualified: [],
+    Unqualified: [],
+    NeedsAssessment: [],
+    QuotationSent: [],
+    NegotiationInProgress: [],
+    DealWon: [],
+    DealLost: [],
+  };
+
   async function fetchOrders() {
     try {
       const query = new URLSearchParams({
@@ -165,6 +187,29 @@
 
       orders = data;
       console.log("orders : ", data);
+
+      // Filter orders by status dynamically
+      const statuses = [
+        "New Lead",
+        "Contacted",
+        "Follow Up",
+        "Qualified",
+        "Unqualified",
+        "Needs Assessment",
+        "Quotation Sent",
+        "Negotiation In Progress",
+        "Deal Won",
+        "Deal Lost",
+      ];
+
+      // Loop through statuses and filter orders for each status
+      statuses.forEach((status) => {
+        accordingToStatusOrders[status.replace(/\s+/g, "")] = orders.filter(
+          (order) => order.status === status
+        );
+      });
+
+      console.log("Filtered orders by status:", accordingToStatusOrders);
     } catch (err) {
       console.error("Fetch error:", err);
     }
@@ -190,10 +235,36 @@
     }
     return (words[0][0] + words[1][0]).toUpperCase();
   }
-</script>
 
-<Header />
-<Sidebar />
+  async function statusUpdate(order) {
+    errorMessage = "";
+    formErrors = {};
+
+    const updateOrder = {
+      title: order.title,
+      status: order.status,
+    };
+
+    try {
+      const data = await authApiFetch(API_ROUTES.ORDER + "/" + order.id, {
+        method: "PUT",
+        data: JSON.stringify(updateOrder),
+      });
+      console.log("data  : ", data);
+    } catch (error) {
+      const validationErrors = errorHandle(error);
+      console.log("validationErrors : ", validationErrors);
+
+      if (validationErrors && typeof validationErrors === "object") {
+        formErrors = validationErrors;
+      } else {
+        errorMessage = "An unexpected error occurred.";
+      }
+    } finally {
+      console.log("formErrors : ", formErrors);
+    }
+  }
+</script>
 
 <div class="page-wrapper">
   <!-- Start Content -->
@@ -204,7 +275,7 @@
         <h4 class="mb-1">Orders</h4>
         <nav aria-label="breadcrumb">
           <ol class="breadcrumb mb-0 p-0">
-            <li class="breadcrumb-item"><a href="/">Home</a></li>
+            <li class="breadcrumb-item"><a href="/admin/dashboard">Home</a></li>
             <li class="breadcrumb-item active" aria-current="page">Orders</li>
           </ol>
         </nav>
@@ -286,279 +357,7 @@
       </div>
     </div>
     <!-- table header -->
-
-    <!-- Orders Kanban -->
-    <div class="flex overflow-x-auto items-start mb-0 gap-3">
-      <!-- New Lead -->
-      <div class="kanban-list-items p-2 rounded border">
-        <div class="card mb-0 border-0 shadow">
-          <div class="card-body p-2">
-            <div class="flex justify-between items-center">
-              <div>
-                <h6 class="flex items-center mb-1">
-                  <i class="ti ti-circle-filled fs-10 text-info me-1"></i>
-                  New Lead
-                </h6>
-                <span>{orders?.length} Orders - ₹ 1,00,000.00</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        {#if orders.length}
-          <div class="kanban-drag-wrap">
-            {#each orders as order}
-              <div>
-                <div class="card kanban-card border mb-0 mt-3 shadow">
-                  <div class="card-body">
-                    <div class="d-block">
-                      <div class="flex items-center mb-3">
-                        <a
-                          href={`/order/${order?.id}`}
-                          class="avatar bg-soft-success text-success rounded-circle flex-shrink-0 me-2"
-                        >
-                          <span class="avatar-title text-success"
-                            >{getAvatarText(order?.title)}</span
-                          >
-                        </a>
-                        <h6 class="fw-medium fs-14 mb-0">
-                          <a href={`/order/${order?.id}`} class="capitalize"
-                            >{order?.title}</a
-                          >
-                        </h6>
-                      </div>
-                    </div>
-                    <div class="flex flex-column">
-                      <p class="text-default d-inline-flex items-center mb-2">
-                        <i class="ti ti-report-money text-dark me-1"></i>
-                        {new Intl.NumberFormat("en-IN", {
-                          style: "currency",
-                          currency: "INR",
-                        })
-                          .format(order?.price || 0)
-                          .replace("₹", "₹ ")}
-                      </p>
-                      <p class="text-default d-inline-flex items-center mb-2">
-                        <i class="ti ti-mail text-dark me-1"></i>
-                        <a href={`mailto:${order?.orderClient?.email}`}
-                          >{order?.orderClient?.email ?? "-"}</a
-                        >
-                      </p>
-                      <p class="text-default d-inline-flex items-center mb-2">
-                        <i class="ti ti-phone text-dark me-1"></i>
-                        {order?.orderClient?.mobile ?? "-"}
-                      </p>
-                      <p class="text-default d-inline-flex items-center">
-                        <i class="ti ti-map-pin-pin text-dark me-1"></i>
-                        {order?.orderClient?.address ?? "-"}
-                      </p>
-                    </div>
-                    <div class="flex justify-between items-center">
-                      <div class="flex items-center">
-                        <a
-                          href="#user"
-                          class="avatar avatar-xs flex-shrink-0 me-2"
-                        >
-                          <img
-                            src="/assets/img/profiles/avatar-19.jpg"
-                            alt="Img"
-                            class="rounded-circle"
-                          />
-                        </a>
-                        <a href="#user" class="text-default">
-                          {order?.orderClient?.name}
-                        </a>
-                      </div>
-                      <span class="badge bg-success">{order?.status}</span>
-                    </div>
-                    <div
-                      class="flex items-center justify-between border-top pt-3 mt-3"
-                    >
-                      <span>
-                        <i class="ti ti-calendar-due"></i>
-                        {order?.orderDate &&
-                          new Date(order.orderDate).toLocaleDateString(
-                            "en-GB",
-                            {
-                              day: "2-digit",
-                              month: "short",
-                              year: "numeric",
-                            }
-                          )}
-                      </span>
-                      <div class="icons-social flex items-center gap-1">
-                        <a
-                          href="#phone"
-                          class="flex items-center justify-center me-1"
-                        >
-                          <i class="ti ti-phone-check"></i>
-                        </a>
-                        <a
-                          href="#message"
-                          class="flex items-center justify-center me-1"
-                        >
-                          <i class="ti ti-message-circle-2"></i>
-                        </a>
-                        <a
-                          href="#label"
-                          class="flex items-center justify-center"
-                        >
-                          <i class="ti ti-color-swatch"></i>
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            {/each}
-          </div>
-        {/if}
-      </div>
-      <!-- Contacted -->
-      <div class="kanban-list-items p-2 rounded border">
-        <div class="card mb-0 border-0 shadow">
-          <div class="card-body p-2">
-            <div class="flex justify-between items-center">
-              <div>
-                <h6 class="flex items-center mb-1">
-                  <i class="ti ti-circle-filled fs-10 text-info me-1"></i>
-                  Contacted
-                </h6>
-                <span>0 Orders - ₹ 0.00</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- Follow-Up -->
-      <div class="kanban-list-items p-2 rounded border">
-        <div class="card mb-0 border-0 shadow">
-          <div class="card-body p-2">
-            <div class="flex justify-between items-center">
-              <div>
-                <h6 class="flex items-center mb-1">
-                  <i class="ti ti-circle-filled fs-10 text-info me-1"></i>
-                  Follow-Up
-                </h6>
-                <span>0 Orders - ₹ 0.00</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- Qualified -->
-      <div class="kanban-list-items p-2 rounded border">
-        <div class="card mb-0 border-0 shadow">
-          <div class="card-body p-2">
-            <div class="flex justify-between items-center">
-              <div>
-                <h6 class="flex items-center mb-1">
-                  <i class="ti ti-circle-filled fs-10 text-info me-1"></i>
-                  Qualified
-                </h6>
-                <span>0 Orders - ₹ 0.00</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- Unqualified -->
-      <div class="kanban-list-items p-2 rounded border">
-        <div class="card mb-0 border-0 shadow">
-          <div class="card-body p-2">
-            <div class="flex justify-between items-center">
-              <div>
-                <h6 class="flex items-center mb-1">
-                  <i class="ti ti-circle-filled fs-10 text-info me-1"></i>
-                  Unqualified
-                </h6>
-                <span>0 Orders - ₹ 0.00</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- Needs Assessment -->
-      <div class="kanban-list-items p-2 rounded border">
-        <div class="card mb-0 border-0 shadow">
-          <div class="card-body p-2">
-            <div class="flex justify-between items-center">
-              <div>
-                <h6 class="flex items-center mb-1">
-                  <i class="ti ti-circle-filled fs-10 text-info me-1"></i>
-                  Needs Assessment
-                </h6>
-                <span>0 Orders - ₹ 0.00</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- Quotation Sent -->
-      <div class="kanban-list-items p-2 rounded border">
-        <div class="card mb-0 border-0 shadow">
-          <div class="card-body p-2">
-            <div class="flex justify-between items-center">
-              <div>
-                <h6 class="flex items-center mb-1">
-                  <i class="ti ti-circle-filled fs-10 text-info me-1"></i>
-                  Quotation Sent
-                </h6>
-                <span>0 Orders - ₹ 0.00</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- Negotiation in Progress -->
-      <div class="kanban-list-items p-2 rounded border">
-        <div class="card mb-0 border-0 shadow">
-          <div class="card-body p-2">
-            <div class="flex justify-between items-center">
-              <div>
-                <h6 class="flex items-center mb-1">
-                  <i class="ti ti-circle-filled fs-10 text-info me-1"></i>
-                  Negotiation in Progress
-                </h6>
-                <span>0 Orders - ₹ 0.00</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- Deal Won -->
-      <div class="kanban-list-items p-2 rounded border">
-        <div class="card mb-0 border-0 shadow">
-          <div class="card-body p-2">
-            <div class="flex justify-between items-center">
-              <div>
-                <h6 class="flex items-center mb-1">
-                  <i class="ti ti-circle-filled fs-10 text-info me-1"></i>
-                  Deal Won
-                </h6>
-                <span>0 Orders - ₹ 0.00</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- Deal Lost -->
-      <div class="kanban-list-items p-2 rounded border">
-        <div class="card mb-0 border-0 shadow">
-          <div class="card-body p-2">
-            <div class="flex justify-between items-center">
-              <div>
-                <h6 class="flex items-center mb-1">
-                  <i class="ti ti-circle-filled fs-10 text-info me-1"></i>
-                  Deal Lost
-                </h6>
-                <span>0 Orders - ₹ 0.00</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <!-- /Orders Kanban -->
+    <OrderDragula {orders} {accordingToStatusOrders} {updateOrderStatus} />
   </div>
   <!-- End Content -->
 </div>

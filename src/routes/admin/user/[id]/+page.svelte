@@ -4,8 +4,6 @@
   import { authApiFetch } from "$lib/api/client";
   import { errorHandle } from "$lib/utils/errorHandle";
   import { page } from "$app/stores";
-  import Header from "$lib/components/Header.svelte";
-  import Sidebar from "$lib/components/Sidebar.svelte";
   import { API_ROUTES } from "$lib/constants/apiRoutes";
 
   let errorMessage = "";
@@ -25,9 +23,6 @@
   let activeTab = "Activity";
 </script>
 
-<Header />
-<Sidebar />
-
 <div class="page-wrapper">
   <!-- Start Content -->
   <div class="content pb-0">
@@ -39,8 +34,8 @@
         <h4 class="mb-1">User</h4>
         <nav aria-label="breadcrumb">
           <ol class="breadcrumb mb-0 p-0">
-            <li class="breadcrumb-item"><a href="/">Home</a></li>
-            <li class="breadcrumb-item"><a href="/user">Users</a></li>
+            <li class="breadcrumb-item"><a href="/admin">Home</a></li>
+            <li class="breadcrumb-item"><a href="/admin/user">Users</a></li>
             <li class="breadcrumb-item active" aria-current="page">User</li>
           </ol>
         </nav>

@@ -3,8 +3,6 @@
   import { goto } from "$app/navigation";
   import { authApiFetch } from "$lib/api/client";
   import { errorHandle } from "$lib/utils/errorHandle";
-  import Header from "$lib/components/Header.svelte";
-  import Sidebar from "$lib/components/Sidebar.svelte";
   import { API_ROUTES } from "$lib/constants/apiRoutes";
   import Swal from "sweetalert2";
 
@@ -36,7 +34,7 @@
       console.log("data  : ", data);
 
       Swal.fire("Success!", data.message, "success");
-      goto("/user");
+      goto("/admin/user");
     } catch (error) {
       loading = false;
       const validationErrors = errorHandle(error);
@@ -54,17 +52,14 @@
   }
 </script>
 
-<Header />
-<Sidebar />
-
 <div class="page-wrapper">
   <div class="content pb-0">
     <div class="mb-4">
       <h4 class="mb-1">Add User</h4>
       <nav aria-label="breadcrumb">
         <ol class="breadcrumb mb-0 p-0">
-          <li class="breadcrumb-item"><a href="/">Home</a></li>
-          <li class="breadcrumb-item"><a href="/user">Users</a></li>
+          <li class="breadcrumb-item"><a href="/admin">Home</a></li>
+          <li class="breadcrumb-item"><a href="/admin/user">Users</a></li>
           <li class="breadcrumb-item active" aria-current="page">Add User</li>
         </ol>
       </nav>
@@ -73,7 +68,7 @@
     <div class="card border-0 rounded-0">
       <div class="card-header flex items-center justify-between">
         <h5>Add User</h5>
-        <a href="/user" class="btn btn-primary">
+        <a href="/admin/user" class="btn btn-primary">
           <i class="ti ti-square-rounded-plus-filled me-1"></i>User List
         </a>
       </div>

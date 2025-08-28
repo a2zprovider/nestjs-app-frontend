@@ -1,3 +1,5 @@
+import Swal from "sweetalert2";
+
 export const errorHandle = (error) => {
     const errData = error?.data;
 
@@ -14,6 +16,8 @@ export const errorHandle = (error) => {
                     : Object.values(constraints);
             }
         }
+    } else {
+        Swal.fire("Warning!", error?.data?.message, "error");
     }
 
     return fieldErrors;

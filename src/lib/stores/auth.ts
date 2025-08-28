@@ -1,6 +1,7 @@
 import { writable } from "svelte/store";
 
 export const token = writable<string | null>(null);
+export const isLoggedIn = writable(false);
 
 // Persist token in localStorage
 if (typeof localStorage !== "undefined") {
@@ -12,3 +13,4 @@ if (typeof localStorage !== "undefined") {
     else localStorage.removeItem("access_token");
   });
 }
+

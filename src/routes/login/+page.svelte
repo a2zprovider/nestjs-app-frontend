@@ -17,7 +17,7 @@
 
   onMount(() => {
     if (checkAuth()) {
-      goto("/dashboard");
+      goto("/admin/dashboard");
     }
   });
 
@@ -37,7 +37,7 @@
         method: "POST",
         data: JSON.stringify({ email, password }),
       });
-      Swal.fire("Success!", 'Sign in successfully.', "success");
+      Swal.fire("Success!", "Sign in successfully.", "success");
       // Store token and user info
       localStorage.setItem("access_token", data.access_token);
       localStorage.setItem("user", JSON.stringify(data.user));
@@ -47,7 +47,7 @@
         // Optional: Implement remember-me logic
       }
 
-      goto("/dashboard");
+      goto("/admin/dashboard");
     } catch (error) {
       console.log("error : ", error);
       errorMessage = errorHandle(error);

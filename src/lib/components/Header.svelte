@@ -114,7 +114,7 @@
   <div class="page-container topbar-menu">
     <div class="flex items-center gap-2">
       <!-- Logo -->
-      <a href="index.html" class="logo">
+      <a href="/admin" class="logo">
         <!-- Logo Normal -->
         <span class="logo-light">
           <span class="logo-lg"
@@ -233,7 +233,7 @@
           </div>
 
           <!-- Item-->
-          <a href="/profile" class="dropdown-item">
+          <a href="/admin/profile" class="dropdown-item">
             <i class="ti ti-user-circle me-1 align-middle"></i>
             <span class="align-middle">Profile</span>
           </a>

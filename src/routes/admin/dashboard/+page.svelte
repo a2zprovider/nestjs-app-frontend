@@ -1,11 +1,8 @@
 <script>
-  import "../../styles/main.css";
-  import { clearUser, setUser } from "../../stores/userStore";
+  import { clearUser, setUser } from "../../../stores/userStore";
   import { onMount } from "svelte";
   import { checkAuth, logoutUser } from "$lib/utils/auth";
   import { goto } from "$app/navigation";
-  import Header from "$lib/components/Header.svelte";
-  import Sidebar from "$lib/components/Sidebar.svelte";
 
   let currentUser;
   onMount(() => {
@@ -17,9 +14,6 @@
     }
   });
 </script>
-
-<Header />
-<Sidebar />
 
 <div class="page-wrapper">
   <!-- Start Content -->
@@ -58,7 +52,7 @@
             </div>
           </div>
           <img
-            src="assets/img/icons/elemnt-01.svg"
+            src="/assets/img/icons/elemnt-01.svg"
             alt="elemnt-04"
             class="img-fluid position-absolute top-0 Start-0"
           />
@@ -92,7 +86,7 @@
             </div>
           </div>
           <img
-            src="assets/img/icons/elemnt-02.svg"
+            src="/assets/img/icons/elemnt-02.svg"
             alt="elemnt-04"
             class="img-fluid position-absolute top-0 Start-0"
           />
@@ -126,7 +120,7 @@
             </div>
           </div>
           <img
-            src="assets/img/icons/elemnt-03.svg"
+            src="/assets/img/icons/elemnt-03.svg"
             alt="elemnt-04"
             class="img-fluid position-absolute top-0 Start-0"
           />
@@ -160,7 +154,7 @@
             </div>
           </div>
           <img
-            src="assets/img/icons/elemnt-04.svg"
+            src="/assets/img/icons/elemnt-04.svg"
             alt="elemnt-04"
             class="img-fluid position-absolute top-0 Start-0"
           />

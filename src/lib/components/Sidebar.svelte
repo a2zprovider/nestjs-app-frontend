@@ -125,17 +125,17 @@
   <div class="sidebar-logo flex items-center h-[57px]">
     <div>
       <!-- Logo Normal -->
-      <a href="/dashboard" class="logo logo-normal">
+      <a href="/admin/dashboard" class="logo logo-normal">
         <img src="/assets/img/logo.svg" alt="Logo" />
       </a>
 
       <!-- Logo Small -->
-      <a href="/dashboard" class="logo-small">
+      <a href="/admin/dashboard" class="logo-small">
         <img src="/assets/img/logo-small.svg" alt="Logo" />
       </a>
 
       <!-- Logo Dark -->
-      <a href="/dashboard" class="dark-logo">
+      <a href="/admin/dashboard" class="dark-logo">
         <img src="/assets/img/logo-white.svg" alt="Logo" />
       </a>
     </div>
@@ -184,8 +184,10 @@
                         <ul>
                           <li>
                             <a
-                              href="/dashboard"
-                              class:active={currentPath === "/dashboard"}
+                              href="/admin/dashboard"
+                              class:active={currentPath.startsWith(
+                                "/admin/dashboard"
+                              )}
                             >
                               Dashboard
                             </a>
@@ -198,16 +200,29 @@
                   <li>
                     <ul>
                       <li>
-                        <a href="/user" class:active={currentPath === "/user"}>
+                        <a
+                          href="/admin/user"
+                          class:active={currentPath.startsWith("/admin/user")}
+                        >
                           <i class="ti ti-user-up"></i><span>Users</span>
                         </a>
                       </li>
                       <li>
                         <a
-                          href="/order"
-                          class:active={currentPath === "/order"}
+                          href="/admin/order"
+                          class:active={currentPath.startsWith("/admin/order")}
                         >
                           <i class="ti ti-medal"></i><span>Orders</span>
+                        </a>
+                      </li>
+                      <li>
+                        <a
+                          href="/admin/dragula"
+                          class:active={currentPath.startsWith(
+                            "/admin/dragula"
+                          )}
+                        >
+                          <i class="ti ti-medal"></i><span>Dragula</span>
                         </a>
                       </li>
                     </ul>
