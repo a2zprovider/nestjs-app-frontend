@@ -21,7 +21,7 @@
     <!-- Page Header -->
     <div class="flex items-center justify-between gap-2 mb-4 flex-wrap">
       <div>
-        <h4 class="mb-0">Deals Dashboard</h4>
+        <h4 class="mb-0">Dashboard</h4>
       </div>
     </div>
     <!-- End Page Header -->
@@ -33,7 +33,7 @@
             <div class="flex items-start justify-between">
               <div class="flex items-start justify-between">
                 <div>
-                  <p class="fs-14 mb-1">Total Companies</p>
+                  <p class="fs-14 mb-1">Total Orders</p>
                   <h2 class="mb-1 fs-16">5468</h2>
                   <p class="text-success mb-0 fs-13">
                     <i class="ti ti-arrow-bar-up me-1"></i>5.62%<span
@@ -67,7 +67,7 @@
             <div class="flex items-start justify-between">
               <div class="flex items-start justify-between">
                 <div>
-                  <p class="fs-14 mb-1">Active Companies</p>
+                  <p class="fs-14 mb-1">Active O</p>
                   <h2 class="mb-1 fs-16">4598</h2>
                   <p class="text-danger mb-0 fs-13">
                     <i class="ti ti-arrow-bar-down me-1"></i>12%<span

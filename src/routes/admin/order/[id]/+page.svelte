@@ -187,6 +187,12 @@
       country = data?.orderClient?.country;
       address = data?.orderClient?.address;
       gstNumber = data?.orderClient?.gstNumber;
+
+      data?.assignedUsers.map((user) => {
+        if (user?.role == "user") {
+          seletedUsers.push(user?.id);
+        }
+      });
     } catch (err) {
       errorMessage = "Failed to load order data.";
     }
@@ -409,6 +415,29 @@
   }
 
   let activeTab = "Activity";
+
+  let statusesColors = {
+    "New Lead": "bg-blue",
+    Contacted: "bg-purple",
+    "Follow Up": "bg-yellow",
+    Qualified: "bg-[#2ecc71]",
+    Unqualified: "bg-[#e74c3c]",
+    "Needs Assessment": "bg-orange",
+    "Quotation Sent": "bg-teal",
+    "Negotiation In Progress": "bg-amber",
+    "Deal Won": "bg-green",
+    "Deal Lost": "bg-red",
+  };
+  function setAssignedUsers() {
+    console.log("order?.assignedUsers :", order?.assignedUsers);
+    console.log("seletedUsers :", seletedUsers);
+    seletedUsers = [];
+    order?.assignedUsers.map((user) => {
+      if (user?.role == "user") {
+        seletedUsers.push(user?.id);
+      }
+    });
+  }
 </script>
 
 <div class="page-wrapper">
@@ -534,7 +563,7 @@
                   <div class="dropdown">
                     <a
                       href="#status"
-                      class="btn btn-xs btn-success fs-12 py-1 px-2 fw-medium d-inline-flex align-items-center"
+                      class={`btn btn-xs bg-success fs-12 py-1 px-2 fw-medium d-inline-flex align-items-center text-white ${statusesColors[order?.status] || "bg-gray"}`}
                       data-bs-toggle="dropdown"
                       aria-expanded="false"
                     >
@@ -679,6 +708,7 @@
               >
                 <h6 class="mb-3 fw-semibold">Assigned Users</h6>
                 <a
+                  on:click={() => setAssignedUsers()}
                   href="#tag"
                   class="link-primary mb-3"
                   data-bs-toggle="modal"

@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { page } from "$app/stores";
   import jQuery from "jquery";
+  import { checkAuth } from "$lib/utils/auth";
 
   let openMenu = null;
 
@@ -118,6 +119,14 @@
       $(document).off("mouseover", mouseOverHandler);
     };
   });
+
+  let currentUser;
+  onMount(() => {
+    currentUser = checkAuth();
+    if (!currentUser) {
+      goto("/login");
+    }
+  });
 </script>
 
 <div class="sidebar" id="sidebar">
@@ -199,30 +208,22 @@
                   <li class="menu-title"><span>CRM</span></li>
                   <li>
                     <ul>
-                      <li>
-                        <a
-                          href="/admin/user"
-                          class:active={currentPath.startsWith("/admin/user")}
-                        >
-                          <i class="ti ti-user-up"></i><span>Users</span>
-                        </a>
-                      </li>
+                      {#if currentUser?.role == "admin"}
+                        <li>
+                          <a
+                            href="/admin/user"
+                            class:active={currentPath.startsWith("/admin/user")}
+                          >
+                            <i class="ti ti-user-up"></i><span>Users</span>
+                          </a>
+                        </li>
+                      {/if}
                       <li>
                         <a
                           href="/admin/order"
                           class:active={currentPath.startsWith("/admin/order")}
                         >
                           <i class="ti ti-medal"></i><span>Orders</span>
-                        </a>
-                      </li>
-                      <li>
-                        <a
-                          href="/admin/dragula"
-                          class:active={currentPath.startsWith(
-                            "/admin/dragula"
-                          )}
-                        >
-                          <i class="ti ti-medal"></i><span>Dragula</span>
                         </a>
                       </li>
                     </ul>

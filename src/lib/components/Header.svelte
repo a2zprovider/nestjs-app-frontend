@@ -12,7 +12,6 @@
     if (!currentUser) {
       goto("/login");
     }
-    console.log("currentUser : ", currentUser);
   });
 
   const logout = () => {

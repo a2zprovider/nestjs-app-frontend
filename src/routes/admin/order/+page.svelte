@@ -6,19 +6,34 @@
   import { API_ROUTES } from "$lib/constants/apiRoutes";
   import Swal from "sweetalert2";
   import OrderDragula from "$lib/components/OrderDragula.svelte";
-  import { writable } from "svelte/store";
+  import DynamicDataTable from "$lib/components/DynamicDataTable.svelte";
 
-  let orders = writable([]);
+  let orders = [];
+  let accordingToStatusOrders = {
+    NewLead: [],
+    Contacted: [],
+    FollowUp: [],
+    Qualified: [],
+    Unqualified: [],
+    NeedsAssessment: [],
+    QuotationSent: [],
+    NegotiationInProgress: [],
+    DealWon: [],
+    DealLost: [],
+  };
 
-  function updateOrderStatus(orderId, newStatus) {
+  async function updateOrderStatus(orderId, newStatus) {
     let n_order = orders.find((order) => order.id == orderId);
-    if (n_order) {
-      n_order.status = newStatus;
-      orders = orders.map((order) => (order.id === orderId ? n_order : order));
-    }
-    statusUpdate(n_order);
+
+    n_order.status = newStatus;
+    let updateStatus = await statusUpdate(n_order);
+    return updateStatus;
   }
+
   let searchTerm = "";
+  let selectedFilter = "last7days";
+  let customStartDate = null;
+  let customEndDate = null;
 
   // Form state
   let title = "";
@@ -43,6 +58,29 @@
 
   let loading = false;
   let errorMessage = "";
+
+  async function setInOrder() {
+    // Filter orders by status dynamically
+    const statuses = [
+      "New Lead",
+      "Contacted",
+      "Follow Up",
+      "Qualified",
+      "Unqualified",
+      "Needs Assessment",
+      "Quotation Sent",
+      "Negotiation In Progress",
+      "Deal Won",
+      "Deal Lost",
+    ];
+
+    // Loop through statuses and filter orders for each status
+    statuses.forEach((status) => {
+      accordingToStatusOrders[status.replace(/\s+/g, "")] = orders.filter(
+        (order) => order.status === status
+      );
+    });
+  }
 
   // Field-specific error messages
   let formErrors = {};
@@ -106,15 +144,14 @@
         method: "POST",
         data: JSON.stringify(newOrder),
       });
-      console.log("data  : ", data);
 
       orders = [data.data, ...orders];
+      setInOrder();
       Swal.fire("Success!", data.message, "success");
       closeOffcanvas();
     } catch (error) {
       loading = false;
       const validationErrors = errorHandle(error);
-      console.log("validationErrors : ", validationErrors);
 
       if (validationErrors && typeof validationErrors === "object") {
         formErrors = validationErrors;
@@ -122,8 +159,6 @@
         errorMessage = "An unexpected error occurred.";
       }
     } finally {
-      console.log("formErrors : ", formErrors);
-
       loading = false;
     }
   }
@@ -159,24 +194,35 @@
     });
   });
 
-  let accordingToStatusOrders = {
-    NewLead: [],
-    Contacted: [],
-    FollowUp: [],
-    Qualified: [],
-    Unqualified: [],
-    NeedsAssessment: [],
-    QuotationSent: [],
-    NegotiationInProgress: [],
-    DealWon: [],
-    DealLost: [],
-  };
-
   async function fetchOrders() {
     try {
       const query = new URLSearchParams({
         search: searchTerm || "",
       });
+
+      const now = new Date();
+      let startDateFilter;
+
+      if (selectedFilter === "last7days") {
+        startDateFilter = new Date(now.setDate(now.getDate() - 7));
+      } else if (selectedFilter === "last30days") {
+        startDateFilter = new Date(now.setDate(now.getDate() - 30));
+      } else if (selectedFilter === "today") {
+        startDateFilter = new Date();
+        startDateFilter.setHours(0, 0, 0, 0); // Start of today
+      } else if (
+        selectedFilter === "custom" &&
+        customStartDate &&
+        customEndDate
+      ) {
+        query.append("startDate", customStartDate);
+        query.append("endDate", customEndDate);
+      }
+
+      if (startDateFilter && selectedFilter !== "custom") {
+        query.append("startDate", startDateFilter.toISOString().split("T")[0]);
+        query.append("endDate", new Date().toISOString().split("T")[0]);
+      }
 
       const data = await authApiFetch(
         `${API_ROUTES.ORDER}?${query.toString()}`,
@@ -186,30 +232,9 @@
       );
 
       orders = data;
-      console.log("orders : ", data);
+      console.log("data : ", data);
 
-      // Filter orders by status dynamically
-      const statuses = [
-        "New Lead",
-        "Contacted",
-        "Follow Up",
-        "Qualified",
-        "Unqualified",
-        "Needs Assessment",
-        "Quotation Sent",
-        "Negotiation In Progress",
-        "Deal Won",
-        "Deal Lost",
-      ];
-
-      // Loop through statuses and filter orders for each status
-      statuses.forEach((status) => {
-        accordingToStatusOrders[status.replace(/\s+/g, "")] = orders.filter(
-          (order) => order.status === status
-        );
-      });
-
-      console.log("Filtered orders by status:", accordingToStatusOrders);
+      setInOrder();
     } catch (err) {
       console.error("Fetch error:", err);
     }
@@ -225,16 +250,8 @@
     }, 300);
   }
 
-  $: [searchTerm], fetchOrders();
-
-  function getAvatarText(title) {
-    if (!title) return "";
-    const words = title.trim().split(" ");
-    if (words.length === 1) {
-      return words[0][0].toUpperCase();
-    }
-    return (words[0][0] + words[1][0]).toUpperCase();
-  }
+  $: [searchTerm, selectedFilter, customStartDate, customEndDate],
+    fetchOrders();
 
   async function statusUpdate(order) {
     errorMessage = "";
@@ -250,16 +267,16 @@
         method: "PUT",
         data: JSON.stringify(updateOrder),
       });
-      console.log("data  : ", data);
+      return true;
     } catch (error) {
       const validationErrors = errorHandle(error);
-      console.log("validationErrors : ", validationErrors);
 
       if (validationErrors && typeof validationErrors === "object") {
         formErrors = validationErrors;
       } else {
         errorMessage = "An unexpected error occurred.";
       }
+      return false;
     } finally {
       console.log("formErrors : ", formErrors);
     }
@@ -332,20 +349,68 @@
     <!-- table header -->
     <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
       <div class="flex items-center gap-2 flex-wrap">
-        <div class="input-icon input-icon-start position-relative">
-          <span class="input-icon-addon text-dark">
-            <i class="ti ti-search"></i>
-          </span>
-          <input
-            type="text"
-            value={searchTerm}
-            on:input={(e) => handleSearchChange(e.target.value)}
-            class="form-control"
-            placeholder="Search.."
-          />
+        <div class="flex items-center gap-2 flex-wrap">
+          <div>
+            <div class="input-icon input-icon-start position-relative">
+              <span class="input-icon-addon text-dark">
+                <i class="ti ti-search"></i>
+              </span>
+              <input
+                type="text"
+                value={searchTerm}
+                on:input={(e) => handleSearchChange(e.target.value)}
+                class="form-control"
+                placeholder="Search.."
+              />
+            </div>
+          </div>
         </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <select
+            bind:value={selectedFilter}
+            class="form-select"
+            on:change={fetchOrders}
+          >
+            <option value="all">All Orders</option>
+            <option value="today">Today</option>
+            <option value="last7days">Last 7 Days</option>
+            <option value="last30days">Last 30 Days</option>
+            <option value="custom">Custom Range</option>
+          </select>
+        </div>
+
+        {#if selectedFilter === "custom"}
+          <div class="flex items-center gap-2 ">
+            <input
+              type="date"
+              bind:value={customStartDate}
+              on:change={fetchOrders}
+              class="form-control"
+            />
+          </div>
+          <div class="flex items-center gap-2 ">
+            <input
+              type="date"
+              bind:value={customEndDate}
+              on:change={fetchOrders}
+              class="form-control"
+            />
+          </div>
+        {/if}
       </div>
       <div class="flex items-center gap-2 flex-wrap">
+        <div
+          class="d-flex align-items-center shadow p-1 rounded border view-icons bg-white"
+        >
+          <button class="btn btn-sm p-1 border-0 fs-14">
+            <i class="ti ti-list-tree"></i>
+          </button>
+          <button
+            class="flex-shrink-0 btn btn-sm p-1 border-0 ms-1 fs-14 active"
+          >
+            <i class="ti ti-grid-dots"></i>
+          </button>
+        </div>
         <a
           href="#offcanvas_add"
           class="btn btn-primary"
@@ -357,7 +422,7 @@
       </div>
     </div>
     <!-- table header -->
-    <OrderDragula {orders} {accordingToStatusOrders} {updateOrderStatus} />
+    <OrderDragula {accordingToStatusOrders} {updateOrderStatus} />
   </div>
   <!-- End Content -->
 </div>
